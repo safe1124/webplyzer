@@ -12,10 +12,11 @@ app.config['BABEL_DEFAULT_LOCALE'] = 'ja'
 app.config['BABEL_TRANSLATION_DIRECTORIES'] = 'translations'
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max total size
 
-UPLOAD_DIR = "uploads"
+UPLOAD_DIR = "/tmp"
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
 MAX_FILES = 25
 
+# /tmp is always available on Vercel, but ensure it exists locally
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 def get_locale():
