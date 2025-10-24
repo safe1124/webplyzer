@@ -6,6 +6,7 @@
     <title>{{ _('title') }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 <body>
     <div class="page-wrapper">
@@ -286,6 +287,26 @@
             }, 3000);
         }
 
+        // Convert single file
+        async function convertSingleFile(file, index, baseName) {
+            const formData = new FormData();
+            formData.append('base_name', baseName);
+            formData.append('file_index', index);
+            formData.append('files', file);
+
+            const response = await fetch('/convert', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || '{{ _("conversion_error") }}');
+            }
+
+            return await response.blob();
+        }
+
         // Handle form submission
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -295,13 +316,9 @@
                 return;
             }
 
-            const formData = new FormData();
-            formData.append('base_name', document.getElementById('baseName').value);
-
-            // Add files in current order
-            selectedFiles.forEach(file => {
-                formData.append('files', file);
-            });
+            const baseName = document.getElementById('baseName').value;
+            const totalFiles = selectedFiles.length;
+            const convertedBlobs = [];
 
             // Show loading state
             loading.style.display = 'block';
@@ -310,40 +327,47 @@
             message.className = 'message';
 
             try {
-                const response = await fetch('/convert', {
-                    method: 'POST',
-                    body: formData
-                });
+                // Convert files one by one
+                for (let i = 0; i < totalFiles; i++) {
+                    const file = selectedFiles[i];
+                    const loadingText = document.querySelector('#loading p');
+                    loadingText.textContent = `{{ _("converting") }} (${i + 1}/${totalFiles})`;
 
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || '{{ _("conversion_error") }}');
+                    const blob = await convertSingleFile(file, i + 1, baseName);
+                    convertedBlobs.push({
+                        blob: blob,
+                        name: `${baseName}_${i + 1}.webp`
+                    });
                 }
 
-                // Get the blob and create download
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
+                // Download files
+                if (totalFiles === 1) {
+                    // Single file: direct download
+                    const url = window.URL.createObjectURL(convertedBlobs[0].blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = convertedBlobs[0].name;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    // Multiple files: create ZIP using JSZip
+                    const zip = new JSZip();
+                    convertedBlobs.forEach(item => {
+                        zip.file(item.name, item.blob);
+                    });
 
-                // Extract filename from Content-Disposition header
-                const contentDisposition = response.headers.get('Content-Disposition');
-                let downloadFileName = 'converted.webp';
-                if (contentDisposition) {
-                    const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-                    if (match && match[1]) {
-                        downloadFileName = match[1].replace(/['"]/g, '');
-                    }
+                    const zipBlob = await zip.generateAsync({type: 'blob'});
+                    const url = window.URL.createObjectURL(zipBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${baseName}_webp.zip`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
                 }
-
-                // Create download link and trigger download
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = downloadFileName;
-                document.body.appendChild(a);
-                a.click();
-
-                // Cleanup
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
 
                 // Show success message
                 showMessage('{{ _("success_message") }}', 'success');

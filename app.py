@@ -83,8 +83,13 @@ def convert():
         # Sanitize filename (preserves Unicode characters)
         base_name = sanitize_filename(base_name)
 
+        # Get file index if provided (for single file conversion)
+        file_index = request.form.get("file_index")
+
         # Process each file
         for idx, file in enumerate(files, start=1):
+            # Use provided file_index if available, otherwise use loop index
+            actual_idx = int(file_index) if file_index else idx
             # Check if file was selected
             if file.filename == '':
                 continue
@@ -94,7 +99,7 @@ def convert():
                 continue
 
             # Create unique filename
-            new_name = f"{base_name}_{idx}.webp"
+            new_name = f"{base_name}_{actual_idx}.webp"
             output_path = os.path.join(UPLOAD_DIR, f"{session_id}_{new_name}")
 
             # Convert image to WebP
