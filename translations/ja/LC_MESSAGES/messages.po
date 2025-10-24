@@ -21,7 +21,7 @@ msgid "title"
 msgstr "WebP変換ツール"
 
 msgid "filename_label"
-msgstr "ファイル名"
+msgstr "名前一括変更"
 
 msgid "filename_placeholder"
 msgstr "例: my_photo"
