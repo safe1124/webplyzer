@@ -1,0 +1,93 @@
+# Japanese translations for WebP Converter.
+# Copyright (C) 2024
+# This file is distributed under the same license as the WebP Converter project.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-10-24 00:00+0000\n"
+"PO-Revision-Date: 2024-10-24 00:00+0000\n"
+"Last-Translator: \n"
+"Language: ja\n"
+"Language-Team: Japanese\n"
+"Plural-Forms: nplurals=1; plural=0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.12.1\n"
+
+msgid "title"
+msgstr "WebP変換ツール"
+
+msgid "filename_label"
+msgstr "ファイル名"
+
+msgid "filename_placeholder"
+msgstr "例: my_photo"
+
+msgid "upload_label"
+msgstr "画像を選択"
+
+msgid "convert_button"
+msgstr "変換する"
+
+msgid "converting"
+msgstr "変換中..."
+
+msgid "footer_text"
+msgstr "JPG/PNG画像をWebP形式に変換します"
+
+msgid "selected_file"
+msgstr "選択されたファイル"
+
+msgid "conversion_error"
+msgstr "変換エラーが発生しました"
+
+msgid "success_message"
+msgstr "変換完了！ダウンロードを開始します"
+
+msgid "no_file"
+msgstr "ファイルが選択されていません"
+
+msgid "no_file_selected"
+msgstr "ファイルを選択してください"
+
+msgid "invalid_file_type"
+msgstr "JPG、JPEG、PNG形式のみ対応しています"
+
+msgid "selected_files"
+msgstr "選択されたファイル"
+
+msgid "files_unit"
+msgstr "個"
+
+msgid "max_25_files"
+msgstr "最大25ファイルまで選択できます"
+
+msgid "too_many_files"
+msgstr "ファイル数が多すぎます（最大25個）"
+
+msgid "no_valid_files"
+msgstr "有効なファイルがありません"
+
+msgid "error"
+msgstr "エラー"
+
+msgid "add_more"
+msgstr "さらに追加"
+
+msgid "remove"
+msgstr "削除"
+
+msgid "file_removed"
+msgstr "ファイルを削除しました"
+
+msgid "max"
+msgstr "最大"
+
+msgid "order_list"
+msgstr "順序リスト"
+
+msgid "drag_to_reorder"
+msgstr "ドラッグして順序を変更"

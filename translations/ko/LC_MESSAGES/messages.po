@@ -1,0 +1,93 @@
+# Korean translations for WebP Converter.
+# Copyright (C) 2024
+# This file is distributed under the same license as the WebP Converter project.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-10-24 00:00+0000\n"
+"PO-Revision-Date: 2024-10-24 00:00+0000\n"
+"Last-Translator: \n"
+"Language: ko\n"
+"Language-Team: Korean\n"
+"Plural-Forms: nplurals=1; plural=0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.12.1\n"
+
+msgid "title"
+msgstr "WebP 변환기"
+
+msgid "filename_label"
+msgstr "파일명"
+
+msgid "filename_placeholder"
+msgstr "예: my_photo"
+
+msgid "upload_label"
+msgstr "이미지 선택"
+
+msgid "convert_button"
+msgstr "변환하기"
+
+msgid "converting"
+msgstr "변환 중..."
+
+msgid "footer_text"
+msgstr "JPG/PNG 이미지를 WebP 형식으로 변환합니다"
+
+msgid "selected_file"
+msgstr "선택된 파일"
+
+msgid "conversion_error"
+msgstr "변환 오류가 발생했습니다"
+
+msgid "success_message"
+msgstr "변환 완료! 다운로드를 시작합니다"
+
+msgid "no_file"
+msgstr "파일이 선택되지 않았습니다"
+
+msgid "no_file_selected"
+msgstr "파일을 선택해주세요"
+
+msgid "invalid_file_type"
+msgstr "JPG, JPEG, PNG 형식만 지원됩니다"
+
+msgid "selected_files"
+msgstr "선택된 파일"
+
+msgid "files_unit"
+msgstr "개"
+
+msgid "max_25_files"
+msgstr "최대 25개 파일까지 선택 가능합니다"
+
+msgid "too_many_files"
+msgstr "파일이 너무 많습니다 (최대 25개)"
+
+msgid "no_valid_files"
+msgstr "유효한 파일이 없습니다"
+
+msgid "error"
+msgstr "오류"
+
+msgid "add_more"
+msgstr "더 추가"
+
+msgid "remove"
+msgstr "삭제"
+
+msgid "file_removed"
+msgstr "파일이 삭제되었습니다"
+
+msgid "max"
+msgstr "최대"
+
+msgid "order_list"
+msgstr "순서 목록"
+
+msgid "drag_to_reorder"
+msgstr "드래그하여 순서 변경"

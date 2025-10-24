@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="{{ get_locale() }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ _('title') }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+</head>
+<body>
+    <div class="page-wrapper">
+        <div class="container">
+            <header>
+                <h1>{{ _('title') }}</h1>
+                <div class="language-selector">
+                    <a href="?lang=ja" class="lang-btn {{ 'active' if get_locale() == 'ja' else '' }}">🇯🇵 日本語</a>
+                    <a href="?lang=en" class="lang-btn {{ 'active' if get_locale() == 'en' else '' }}">🇺🇸 English</a>
+                    <a href="?lang=ko" class="lang-btn {{ 'active' if get_locale() == 'ko' else '' }}">🇰🇷 한국어</a>
+                </div>
+            </header>
+
+            <main>
+            <form id="convertForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="baseName">{{ _('filename_label') }}</label>
+                    <input
+                        type="text"
+                        id="baseName"
+                        name="base_name"
+                        placeholder="{{ _('filename_placeholder') }}"
+                        value="image"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <input
+                        type="file"
+                        id="fileInput"
+                        name="files"
+                        accept=".jpg,.jpeg,.png"
+                        multiple
+                        style="display: none;"
+                    >
+                    <label for="fileInput" class="file-label">
+                        {{ _('upload_label') }}
+                    </label>
+                    <button type="button" id="addMoreBtn" class="add-more-btn" style="display: none;">
+                        + {{ _('add_more') }}
+                    </button>
+                    <div id="fileCount" class="file-count"></div>
+                </div>
+
+                <!-- Thumbnail Gallery -->
+                <div id="thumbnailGallery" class="thumbnail-gallery"></div>
+
+                <button type="submit" id="convertBtn" class="convert-btn">
+                    {{ _('convert_button') }}
+                </button>
+            </form>
+
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>{{ _('converting') }}</p>
+            </div>
+
+            <div id="message" class="message"></div>
+            </main>
+
+            <footer>
+                <p>{{ _('footer_text') }}</p>
+            </footer>
+        </div>
+
+        <!-- Right: Order List (Outside Container) -->
+        <div class="order-sidebar" id="orderSidebar" style="display: none;">
+            <div class="order-header">
+                <h3>{{ _('order_list') }}</h3>
+                <p class="order-hint">{{ _('drag_to_reorder') }}</p>
+            </div>
+            <ul id="orderList" class="order-list"></ul>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('convertForm');
+        const fileInput = document.getElementById('fileInput');
+        const addMoreBtn = document.getElementById('addMoreBtn');
+        const fileCount = document.getElementById('fileCount');
+        const thumbnailGallery = document.getElementById('thumbnailGallery');
+        const loading = document.getElementById('loading');
+        const message = document.getElementById('message');
+        const convertBtn = document.getElementById('convertBtn');
+        const MAX_FILES = 25;
+
+        let selectedFiles = [];
+        let sortableInstance = null;
+        const orderSidebar = document.getElementById('orderSidebar');
+        const orderList = document.getElementById('orderList');
+
+        // Initialize button state
+        convertBtn.disabled = true;
+
+        // Click on add more button to open file dialog
+        addMoreBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // Handle file selection
+        fileInput.addEventListener('change', (e) => {
+            const newFiles = Array.from(e.target.files);
+
+            // Add new files to existing array
+            for (const file of newFiles) {
+                if (selectedFiles.length >= MAX_FILES) {
+                    showMessage('{{ _("error") }}: {{ _("max_25_files") }}', 'error');
+                    break;
+                }
+                if (file.type.match(/image\/(jpeg|jpg|png)/)) {
+                    selectedFiles.push(file);
+                }
+            }
+
+            updateGallery();
+            // Reset input to allow selecting the same file again
+            fileInput.value = '';
+        });
+
+        // Update thumbnail gallery and order list
+        function updateGallery() {
+            thumbnailGallery.innerHTML = '';
+            orderList.innerHTML = '';
+
+            if (selectedFiles.length === 0) {
+                addMoreBtn.style.display = 'none';
+                fileCount.textContent = '';
+                convertBtn.disabled = true;
+                orderSidebar.style.display = 'none';
+                return;
+            }
+
+            addMoreBtn.style.display = 'inline-block';
+            fileCount.textContent = `{{ _('selected_files') }}: ${selectedFiles.length}{{ _('files_unit') }} ({{ _('max') }} ${MAX_FILES})`;
+            convertBtn.disabled = false;
+            orderSidebar.style.display = 'flex';
+
+            // Update thumbnail gallery
+            selectedFiles.forEach((file, index) => {
+                const card = createThumbnailCard(file, index);
+                thumbnailGallery.appendChild(card);
+            });
+
+            // Update order list
+            selectedFiles.forEach((file, index) => {
+                const listItem = createOrderItem(file, index);
+                orderList.appendChild(listItem);
+            });
+
+            // Initialize or update Sortable
+            initializeSortable();
+        }
+
+        // Create order list item
+        function createOrderItem(file, index) {
+            const li = document.createElement('li');
+            li.className = 'order-item';
+            li.dataset.index = index;
+
+            const handle = document.createElement('span');
+            handle.className = 'drag-handle';
+            handle.textContent = '⋮⋮';
+
+            const number = document.createElement('div');
+            number.className = 'order-number';
+            number.textContent = index + 1;
+
+            const filename = document.createElement('div');
+            filename.className = 'order-filename';
+            filename.textContent = file.name;
+            filename.title = file.name;
+
+            li.appendChild(handle);
+            li.appendChild(number);
+            li.appendChild(filename);
+
+            return li;
+        }
+
+        // Initialize Sortable.js
+        function initializeSortable() {
+            if (sortableInstance) {
+                sortableInstance.destroy();
+            }
+
+            sortableInstance = new Sortable(orderList, {
+                animation: 200,
+                easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+                handle: '.drag-handle',
+                ghostClass: 'sortable-ghost',
+                dragClass: 'sortable-drag',
+                onEnd: function(evt) {
+                    // Reorder the files array
+                    const movedFile = selectedFiles.splice(evt.oldIndex, 1)[0];
+                    selectedFiles.splice(evt.newIndex, 0, movedFile);
+
+                    // Update both gallery and list
+                    updateGallery();
+                }
+            });
+        }
+
+        // Create thumbnail card
+        function createThumbnailCard(file, index) {
+            const card = document.createElement('div');
+            card.className = 'thumbnail-card';
+            card.dataset.index = index;
+
+            // Thumbnail image
+            const img = document.createElement('img');
+            img.className = 'thumbnail-img';
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+
+            // File info
+            const info = document.createElement('div');
+            info.className = 'thumbnail-info';
+
+            const name = document.createElement('div');
+            name.className = 'thumbnail-name';
+            name.textContent = file.name;
+            name.title = file.name;
+
+            const size = document.createElement('div');
+            size.className = 'thumbnail-size';
+            size.textContent = formatFileSize(file.size);
+
+            info.appendChild(name);
+            info.appendChild(size);
+
+            // Delete button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'thumbnail-delete';
+            deleteBtn.innerHTML = '×';
+            deleteBtn.title = '{{ _("remove") }}';
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation();
+                removeFile(index);
+            };
+
+            // Order badge
+            const orderBadge = document.createElement('div');
+            orderBadge.className = 'thumbnail-order';
+            orderBadge.textContent = index + 1;
+
+            card.appendChild(img);
+            card.appendChild(info);
+            card.appendChild(deleteBtn);
+            card.appendChild(orderBadge);
+
+            return card;
+        }
+
+        // Format file size
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        // Remove file
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updateGallery();
+            showMessage('{{ _("file_removed") }}', 'success');
+        }
+
+        // Show message
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.className = `message ${type}`;
+            setTimeout(() => {
+                message.textContent = '';
+                message.className = 'message';
+            }, 3000);
+        }
+
+        // Handle form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (selectedFiles.length === 0) {
+                showMessage('{{ _("no_file_selected") }}', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('base_name', document.getElementById('baseName').value);
+
+            // Add files in current order
+            selectedFiles.forEach(file => {
+                formData.append('files', file);
+            });
+
+            // Show loading state
+            loading.style.display = 'block';
+            convertBtn.disabled = true;
+            message.textContent = '';
+            message.className = 'message';
+
+            try {
+                const response = await fetch('/convert', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || '{{ _("conversion_error") }}');
+                }
+
+                // Get the blob and create download
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+
+                // Extract filename from Content-Disposition header
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let downloadFileName = 'converted.webp';
+                if (contentDisposition) {
+                    const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                    if (match && match[1]) {
+                        downloadFileName = match[1].replace(/['"]/g, '');
+                    }
+                }
+
+                // Create download link and trigger download
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = downloadFileName;
+                document.body.appendChild(a);
+                a.click();
+
+                // Cleanup
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                // Show success message
+                showMessage('{{ _("success_message") }}', 'success');
+
+                // Reset
+                selectedFiles = [];
+                updateGallery();
+
+            } catch (error) {
+                showMessage(error.message, 'error');
+            } finally {
+                loading.style.display = 'none';
+                convertBtn.disabled = selectedFiles.length === 0;
+            }
+        });
+    </script>
+</body>
+</html>
