@@ -64,6 +64,7 @@ Webplyzer は Next.js 15（App Router + TypeScript）で構築された WebP 変
 - ローカル開発は `npm run dev` で `http://localhost:3000` を起動
 - ビルド/デプロイは `npm run build` → `npm run start`。Vercel では `npm run build` が自動実行され、Node ランタイムで API が動作
 - canary リリースを利用しているため、依存アップデート時は CI で `npm install` → `npm run lint` → `npm run build` を必ず回す
+- Next.js 15 canary は Node.js 18.18 以上が必須。`.nvmrc` を利用しローカル環境のバージョン差異を防ぐ。
 
 ## 9. 今後の拡張案
 - 画像品質・画質調整スライダーの追加（`sharp` オプション expose）

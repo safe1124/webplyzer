@@ -1,23 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  DndContext,
-  DragEndEvent,
-  KeyboardSensor,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import Sortable, { SortableEvent } from "sortablejs";
 import clsx from "clsx";
 import { ALLOWED_EXTENSIONS, MAX_FILES, sanitizeFilename } from "@/lib/sanitizeFilename";
 import { Locale, localeOptions, messages } from "@/lib/i18n";
@@ -29,10 +13,12 @@ type FileItem = {
   sizeLabel: string;
 };
 
-type Feedback = {
-  tone: "success" | "error";
-  text: string;
-} | null;
+type Feedback =
+  | {
+      tone: "success" | "error";
+      text: string;
+    }
+  | null;
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -40,15 +26,24 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-async function downloadMultiple(blobs: Array<{ blob: Blob; name: string }>, zipName: string) {
+function reorderList<T>(list: T[], fromIndex: number, toIndex: number): T[] {
+  if (fromIndex === toIndex) return list;
+  const updated = [...list];
+  const [moved] = updated.splice(fromIndex, 1);
+  if (!moved) return list;
+  updated.splice(toIndex, 0, moved);
+  return updated;
+}
+
+async function downloadMultiple(
+  files: Array<{ blob: Blob; name: string }>,
+  zipName: string
+): Promise<void> {
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
-  blobs.forEach(({ blob, name }) => {
-    zip.file(name, blob);
-  });
-
-  const zipBlob = await zip.generateAsync({ type: "blob" });
-  downloadBlob(zipBlob, zipName);
+  files.forEach(({ blob, name }) => zip.file(name, blob));
+  const blob = await zip.generateAsync({ type: "blob" });
+  downloadBlob(blob, zipName);
 }
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -78,91 +73,19 @@ function resolveErrorMessage(code: string | undefined, locale: Locale): string {
   }
 }
 
-function SortableThumbnail({
-  item,
-  index,
-  onRemove,
-  disabled,
-  label,
-}: {
-  item: FileItem;
-  index: number;
-  onRemove: (id: string) => void;
-  disabled: boolean;
-  label: { remove: string };
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: item.id,
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={clsx(
-        "group relative flex flex-col overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-sm transition-all",
-        isDragging ? "ring-4 ring-brand-200 ring-offset-2" : "hover:-translate-y-1 hover:shadow-lg"
-      )}
-    >
-      <div className="relative">
-        <img
-          src={item.previewUrl}
-          alt={item.file.name}
-          className="h-32 w-full object-cover"
-          draggable={false}
-        />
-        <span className="absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-brand-500 text-sm font-semibold text-white shadow">
-          {index + 1}
-        </span>
-        <button
-          type="button"
-          onClick={() => onRemove(item.id)}
-          disabled={disabled}
-          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-red-500/90 text-lg text-white shadow transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
-          aria-label={label.remove}
-        >
-          ×
-        </button>
-      </div>
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <p className="line-clamp-2 text-sm font-semibold text-slate-800">{item.file.name}</p>
-        <div className="flex items-center justify-between text-xs text-slate-500">
-          <span>{item.sizeLabel}</span>
-          <button
-            type="button"
-            className="cursor-grab text-brand-500 transition hover:text-brand-600 active:cursor-grabbing"
-            disabled={disabled}
-            {...attributes}
-            {...listeners}
-          >
-            ⋮⋮
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function HomePage() {
   const [items, setItems] = useState<FileItem[]>([]);
-  const [baseName, setBaseName] = useState<string>("image");
+  const [baseName, setBaseName] = useState("image");
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [isConverting, setIsConverting] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [locale, setLocale] = useState<Locale>("ja");
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const dropRef = useRef<HTMLLabelElement | null>(null);
+  const galleryRef = useRef<HTMLDivElement | null>(null);
+  const sortableRef = useRef<Sortable | null>(null);
   const itemsRef = useRef<FileItem[]>([]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
 
   const t = useMemo(() => messages[locale], [locale]);
 
@@ -180,16 +103,48 @@ export default function HomePage() {
   }, [items]);
 
   useEffect(() => {
+    const el = galleryRef.current;
+
+    if (!el || items.length === 0) {
+      sortableRef.current?.destroy();
+      sortableRef.current = null;
+      return;
+    }
+
+    sortableRef.current?.destroy();
+    sortableRef.current = Sortable.create(el, {
+      animation: 200,
+      handle: ".js-drag-handle",
+      easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+      onEnd: (event: SortableEvent) => {
+        const { oldIndex, newIndex } = event;
+        if (
+          typeof oldIndex !== "number" ||
+          typeof newIndex !== "number" ||
+          oldIndex === newIndex
+        ) {
+          return;
+        }
+        setItems((prev) => reorderList(prev, oldIndex, newIndex));
+      },
+    });
+
+    return () => {
+      sortableRef.current?.destroy();
+      sortableRef.current = null;
+    };
+  }, [items.length]);
+
+  useEffect(() => {
     return () => {
       itemsRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+      sortableRef.current?.destroy();
     };
   }, []);
 
   const handleFilesAdded = (files: FileList | File[]) => {
     const incoming = Array.from(files);
-    if (!incoming.length) {
-      return;
-    }
+    if (!incoming.length) return;
 
     let blockedByLimit = false;
     let rejectedUnsupported = false;
@@ -202,13 +157,16 @@ export default function HomePage() {
           blockedByLimit = true;
           break;
         }
+
         const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
         if (!ALLOWED_EXTENSIONS.has(extension)) {
           rejectedUnsupported = true;
           continue;
         }
+
         const id = crypto.randomUUID();
         const previewUrl = URL.createObjectURL(file);
+
         next.push({
           id,
           file,
@@ -216,6 +174,7 @@ export default function HomePage() {
           sizeLabel: formatFileSize(file.size),
         });
       }
+
       return next;
     });
 
@@ -239,19 +198,9 @@ export default function HomePage() {
     setFeedback({ tone: "success", text: t.file_removed });
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    setItems((prev) => {
-      const oldIndex = prev.findIndex((item) => item.id === active.id);
-      const newIndex = prev.findIndex((item) => item.id === over.id);
-      return arrayMove(prev, oldIndex, newIndex);
-    });
-  };
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
     if (!items.length) {
       setFeedback({ tone: "error", text: t.no_file_selected });
       return;
@@ -267,11 +216,11 @@ export default function HomePage() {
 
       for (let index = 0; index < items.length; index += 1) {
         setProgress({ current: index + 1, total: items.length });
-        const item = items[index];
+        const current = items[index];
         const formData = new FormData();
         formData.append("base_name", safeBaseName);
         formData.append("file_index", (index + 1).toString());
-        formData.append("files", item.file, item.file.name);
+        formData.append("files", current.file, current.file.name);
 
         const response = await fetch("/api/convert", {
           method: "POST",
@@ -346,9 +295,7 @@ export default function HomePage() {
             <div className="grid gap-6 md:grid-cols-[2fr,3fr]">
               <div className="flex flex-col gap-6">
                 <label className="flex flex-col gap-2 text-left">
-                  <span className="text-sm font-semibold text-slate-600">
-                    {t.filename_label}
-                  </span>
+                  <span className="text-sm font-semibold text-slate-600">{t.filename_label}</span>
                   <input
                     value={baseName}
                     onChange={(event) => setBaseName(event.target.value)}
@@ -362,14 +309,20 @@ export default function HomePage() {
                   htmlFor="fileInput"
                   onDragOver={(event) => {
                     event.preventDefault();
-                    if (dropRef.current) dropRef.current.dataset.dropping = "true";
+                    if (dropRef.current) {
+                      dropRef.current.dataset.dropping = "true";
+                    }
                   }}
                   onDragLeave={() => {
-                    if (dropRef.current) delete dropRef.current.dataset.dropping;
+                    if (dropRef.current) {
+                      delete dropRef.current.dataset.dropping;
+                    }
                   }}
                   onDrop={(event) => {
                     event.preventDefault();
-                    if (dropRef.current) delete dropRef.current.dataset.dropping;
+                    if (dropRef.current) {
+                      delete dropRef.current.dataset.dropping;
+                    }
                     handleFilesAdded(event.dataTransfer.files);
                   }}
                   className={clsx(
@@ -379,9 +332,7 @@ export default function HomePage() {
                       : "hover:border-brand-400 hover:bg-brand-100/60"
                   )}
                 >
-                  <span className="text-base font-semibold text-slate-700">
-                    {t.upload_label}
-                  </span>
+                  <span className="text-base font-semibold text-slate-700">{t.upload_label}</span>
                   <p className="text-sm text-slate-500">
                     JPG / JPEG / PNG · {t.max}: {MAX_FILES}
                   </p>
@@ -433,22 +384,55 @@ export default function HomePage() {
                 </div>
 
                 {items.length > 0 ? (
-                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                    <SortableContext items={items.map((item) => item.id)} strategy={verticalListSortingStrategy}>
-                      <div className="grid max-h-[540px] grid-cols-1 gap-4 overflow-y-auto pr-1 md:grid-cols-2 xl:grid-cols-3">
-                        {items.map((item, index) => (
-                          <SortableThumbnail
-                            key={item.id}
-                            item={item}
-                            index={index}
-                            onRemove={handleRemove}
-                            disabled={isConverting}
-                            label={{ remove: t.remove }}
+                  <div
+                    ref={galleryRef}
+                    className="grid max-h-[540px] grid-cols-1 gap-4 overflow-y-auto pr-1 md:grid-cols-2 xl:grid-cols-3"
+                  >
+                    {items.map((item, index) => (
+                      <div
+                        key={item.id}
+                        data-id={item.id}
+                        className="group relative flex flex-col overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg"
+                      >
+                        <div className="relative">
+                          <img
+                            src={item.previewUrl}
+                            alt={item.file.name}
+                            className="h-32 w-full object-cover"
+                            draggable={false}
                           />
-                        ))}
+                          <span className="absolute left-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-brand-500 text-sm font-semibold text-white shadow">
+                            {index + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemove(item.id)}
+                            disabled={isConverting}
+                            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-red-500/90 text-lg text-white shadow transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                            aria-label={t.remove}
+                          >
+                            ×
+                          </button>
+                        </div>
+                        <div className="flex flex-1 flex-col gap-2 p-4">
+                          <p className="line-clamp-2 text-sm font-semibold text-slate-800">
+                            {item.file.name}
+                          </p>
+                          <div className="flex items-center justify-between text-xs text-slate-500">
+                            <span>{item.sizeLabel}</span>
+                            <button
+                              type="button"
+                              className="js-drag-handle cursor-grab text-brand-500 transition hover:text-brand-600 active:cursor-grabbing"
+                              disabled={isConverting}
+                              aria-label={t.drag_to_reorder}
+                            >
+                              ⋮⋮
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </SortableContext>
-                  </DndContext>
+                    ))}
+                  </div>
                 ) : (
                   <div className="flex h-full min-h-[320px] items-center justify-center rounded-2xl border border-dashed border-brand-100 bg-brand-50/40 text-sm text-slate-400">
                     {t.no_file_selected}

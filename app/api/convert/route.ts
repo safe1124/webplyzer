@@ -1,5 +1,4 @@
 import JSZip from "jszip";
-import { NextResponse } from "next/server";
 import sharp from "sharp";
 import { ALLOWED_EXTENSIONS, MAX_FILES, sanitizeFilename } from "@/lib/sanitizeFilename";
 
@@ -20,11 +19,11 @@ export async function POST(req: Request) {
     const fileIndexOverride = Number(formData.get("file_index"));
 
     if (!files.length) {
-      return NextResponse.json({ error: "no_file" }, { status: 400 });
+      return Response.json({ error: "no_file" }, { status: 400 });
     }
 
     if (files.length > MAX_FILES) {
-      return NextResponse.json({ error: "too_many_files" }, { status: 400 });
+      return Response.json({ error: "too_many_files" }, { status: 400 });
     }
 
     const converted: Array<{ name: string; buffer: Buffer }> = [];
@@ -57,12 +56,17 @@ export async function POST(req: Request) {
     }
 
     if (!converted.length) {
-      return NextResponse.json({ error: "no_valid_files" }, { status: 400 });
+      return Response.json({ error: "no_valid_files" }, { status: 400 });
     }
 
     if (converted.length === 1) {
       const [single] = converted;
-      return new NextResponse(single.buffer, {
+      const body = single.buffer.buffer.slice(
+        single.buffer.byteOffset,
+        single.buffer.byteOffset + single.buffer.byteLength
+      ) as ArrayBuffer;
+
+      return new Response(body, {
         status: 200,
         headers: {
           "Content-Type": "image/webp",
@@ -78,7 +82,12 @@ export async function POST(req: Request) {
     });
 
     const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
-    return new NextResponse(zipBuffer, {
+    const zipBody = zipBuffer.buffer.slice(
+      zipBuffer.byteOffset,
+      zipBuffer.byteOffset + zipBuffer.byteLength
+    ) as ArrayBuffer;
+
+    return new Response(zipBody, {
       status: 200,
       headers: {
         "Content-Type": "application/zip",
@@ -88,6 +97,6 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("[api/convert] error", error);
-    return NextResponse.json({ error: "internal_error" }, { status: 500 });
+    return Response.json({ error: "internal_error" }, { status: 500 });
   }
 }

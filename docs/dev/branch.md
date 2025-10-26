@@ -53,3 +53,4 @@
 - `sharp` 利用のため API ルートは Node runtime に固定。エッジ化の提案が出た場合は技術検証が必要。
 - 依存追加後は `npm run lint` と `npm run build` をローカルで実行し、CI と同条件で確認。
 - canary 依存の更新は Breaking 変更が混在する可能性があるため、`pnpm patch` 等でバージョンを固定し、`docs/specs/spec.md` に影響を記録する。
+- Next.js 15 は Node.js 18.18 以上が必須。ローカルで lint/build を実行する前に `nvm use` などでバージョンを揃える。
