@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply min-h-screen bg-gradient-to-b from-brand-100 via-white to-brand-50 text-slate-800 antialiased;
+}
+
+main {
+  @apply py-10;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background-color: theme("colors.brand.50");
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: theme("colors.brand.200");
+  border-radius: 9999px;
+}

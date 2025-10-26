@@ -1,59 +1,57 @@
 # Webplyzer
 
-A web application for converting images to WebP format with batch processing capabilities.
+Next.js 15 (App Router) 製のバッチ WebP 変換ツールです。複数の JPG/JPEG/PNG ファイルを任意順に並べ替えてアップロードし、WebP へ変換・連番リネーム・ZIP ダウンロードを行えます。UI は Tailwind CSS、ドラッグ&ドロップは DnD Kit を採用しています。
 
-## Features
+## 主な機能
+- **WebP 変換**: `sharp` を用いたサーバーサイド変換（品質 90・アルファ保持）
+- **一括処理**: 最大 25 ファイルまでまとめて変換し、必要に応じて ZIP を生成
+- **ドラッグ並べ替え**: サムネイルカードをドラッグして処理順を変更
+- **多言語 UI**: 日本語 / 英語 / 韓国語を切り替え可能
+- **即時ダウンロード**: 単一ファイルなら即時ダウンロード、複数は ZIP にまとめて配布
 
-- 🖼️ Convert images (JPG, JPEG, PNG) to WebP format
-- 📦 Batch conversion support
-- 🌐 Multi-language support (English, Japanese, Korean)
-- 💾 Automatic ZIP file creation for batch downloads
-- 🎨 Modern and responsive UI
-- ⚡ Fast conversion with quality control
-
-## Installation
-
-1. Clone the repository:
+## セットアップ
 ```bash
 git clone https://github.com/safe1124/webplyzer.git
 cd webplyzer
+
+# 依存パッケージをインストール
+npm install
+
+# 開発サーバー起動
+npm run dev
 ```
 
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
+ブラウザで `http://localhost:3000` を開くとアプリケーションが表示されます。
+
+> **Note**: Next.js 15 は canary リリースを使用しています。最新の `next@canary` / `react@canary` / `react-dom@canary` を利用できる Node.js 18.18+ 環境で実行してください。
+
+## スクリプト
+| コマンド | 説明 |
+|---------|------|
+| `npm run dev` | 開発モードで Next.js を起動（Hot Reload 対応） |
+| `npm run build` | 本番ビルドを生成 |
+| `npm run start` | 本番ビルドを起動 |
+| `npm run lint` | ESLint（`next lint`）を実行 |
+
+## ディレクトリ構成
+```
+app/                 # App Router ルート・API
+  api/convert/       # 画像変換 API (Node runtime)
+  page.tsx           # メイン UI
+  layout.tsx         # レイアウト
+  globals.css        # Tailwind グローバルスタイル
+components/          # UI コンポーネント（必要に応じて拡張）
+lib/                 # ユーティリティ（サニタイズ、翻訳定義など）
+public/              # 静的アセット
+docs/                # プロジェクトドキュメント
 ```
 
-3. Run the application:
-```bash
-python app.py
-```
+## 技術スタック
+- **フレームワーク**: Next.js 15 App Router + TypeScript
+- **スタイリング**: Tailwind CSS
+- **ドラッグ&ドロップ**: `@dnd-kit/core`
+- **画像変換**: `sharp`
+- **ZIP 生成**: `jszip`
 
-4. Open your browser and navigate to `http://localhost:5000`
-
-## Usage
-
-1. Select one or multiple image files (JPG, JPEG, PNG)
-2. Choose your preferred language from the dropdown
-3. Click "Convert to WebP" button
-4. Download individual WebP files or get all files in a ZIP archive
-
-## Technologies
-
-- **Backend**: Flask (Python)
-- **Frontend**: HTML5, CSS3, JavaScript
-- **Image Processing**: Pillow (PIL)
-- **Internationalization**: Flask-Babel
-
-## Deployment
-
-This application is configured for deployment on Vercel. See `vercel.json` for configuration details.
-
-## License
-
+## ライセンス
 MIT License
-
-## Author
-
-safe1124
-
