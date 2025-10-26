@@ -1,6 +1,6 @@
 # Webplyzer
 
-Next.js 15 (App Router) 製のバッチ WebP 変換ツールです。複数の JPG/JPEG/PNG ファイルを任意順に並べ替えてアップロードし、WebP へ変換・連番リネーム・ZIP ダウンロードを行えます。UI は Tailwind CSS、ドラッグ&ドロップは DnD Kit を採用しています。
+Next.js 15 (App Router) 製のバッチ WebP 変換ツールです。複数の JPG/JPEG/PNG ファイルを任意順に並べ替えてアップロードし、WebP へ変換・連番リネーム・ZIP ダウンロードを行えます。UI は Tailwind CSS、ドラッグ&ドロップは SortableJS、開発時には Turbopack を利用しています。
 
 ## 主な機能
 - **WebP 変換**: `sharp` を用いたサーバーサイド変換（品質 90・アルファ保持）
@@ -28,8 +28,8 @@ npm run dev
 ## スクリプト
 | コマンド | 説明 |
 |---------|------|
-| `npm run dev` | 開発モードで Next.js を起動（Hot Reload 対応） |
-| `npm run build` | 本番ビルドを生成 |
+| `npm run dev` | Turbopack で開発サーバーを起動（高速 HMR 対応） |
+| `npm run build` | Next.js 標準ビルド（SWC ベース）を生成 |
 | `npm run start` | 本番ビルドを起動 |
 | `npm run lint` | ESLint（`next lint`）を実行 |
 
@@ -49,9 +49,10 @@ docs/                # プロジェクトドキュメント
 ## 技術スタック
 - **フレームワーク**: Next.js 15 App Router + TypeScript
 - **スタイリング**: Tailwind CSS
-- **ドラッグ&ドロップ**: `@dnd-kit/core`
+- **ドラッグ&ドロップ**: `sortablejs`
 - **画像変換**: `sharp`
 - **ZIP 生成**: `jszip`
+- **バンドラー**: Turbopack (開発) / Next.js Build Pipeline (本番)
 
 ## ライセンス
 MIT License

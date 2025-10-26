@@ -14,7 +14,7 @@
 ## 標準フロー
 1. 最新化: `git checkout main && git pull --ff-only origin main`
 2. ブランチ作成: `git checkout -b <type>/<topic>`
-3. 開発: `npm install`（初回のみ）→ `npm run dev` で Next.js を起動しつつ実装
+3. 開発: `npm install`（初回のみ）→ `npm run dev`（Turbopack）で Next.js を起動しつつ実装
 4. 手動テスト（最低限）
    - 単一画像の WebP 変換が成功し、ダウンロードできる
    - 複数画像をドラッグで並べ替えてから変換し、ZIP 内の順序が UI と一致する
@@ -54,3 +54,4 @@
 - 依存追加後は `npm run lint` と `npm run build` をローカルで実行し、CI と同条件で確認。
 - canary 依存の更新は Breaking 変更が混在する可能性があるため、`pnpm patch` 等でバージョンを固定し、`docs/specs/spec.md` に影響を記録する。
 - Next.js 15 は Node.js 18.18 以上が必須。ローカルで lint/build を実行する前に `nvm use` などでバージョンを揃える。
+- Turbopack の挙動差異が発生した場合は `next dev` の `--no-turbo` で切り替え検証し、結果をドキュメント化する。

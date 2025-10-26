@@ -8,12 +8,12 @@
 - ドキュメントの SoT は `docs/`。更新や追記時は `docs/index.md` のインデックスも必ずメンテナンスします。
 
 ## Build, Test, and Development Commands
-- 依存解決と開発サーバー起動:
+- 依存解決と開発サーバー起動（Turbopack 使用）:
 ```bash
 npm install
-npm run dev
+npm run dev   # next dev --turbo
 ```
-- 本番ビルド/起動: `npm run build && npm run start`
+- 本番ビルド/起動: `npm run build && npm run start`（ビルドは Next.js 標準パイプライン）
 - Lint チェック: `npm run lint`
 - Next.js 15 は canary を使用しています。Node.js 18.18+ での動作確認を推奨します。
 
@@ -21,7 +21,7 @@ npm run dev
 - TypeScript は strict モード。エイリアス `@/*` を通じてルート相対 import を利用してください。
 - React コンポーネントは関数コンポーネント・hooks ベース。副作用には `useEffect`、非同期処理には `async/await` を用います。
 - Tailwind クラスはロジックと分離し、複雑な組み合わせは `clsx` で整理します。トークンは `tailwind.config.ts` の `brand` カラーを再利用。
-- API ルートは Node runtime (`export const runtime = "nodejs"`) を明示し、バイナリレスポンスには `NextResponse` を使用します。
+- API ルートは Node runtime (`export const runtime = "nodejs"`) を明示し、バイナリレスポンスには Web 標準 `Response` を使用します。
 
 ## Testing Guidelines
 - 現状は手動テストを必須とします。最低限以下を確認してください:
@@ -40,7 +40,7 @@ npm run dev
   - 翻訳を更新した場合は査読を依頼し、確認済ロケールを明記
 
 ## Deployment Notes
-- Vercel でのデプロイを想定。`package.json` の `build`/`start` スクリプトを利用し、環境は Node runtime で実行されます。
+- Vercel でのデプロイを想定。`package.json` の `build`/`start` スクリプトを利用し、Next.js 標準ビルドアーティファクトを Node runtime で提供します。
 - `sharp` はネイティブバイナリを含むため、Vercel のビルドステップで自動的にインストールされます。ローカル CI では `npm ci` と `npm run build` の組み合わせで検証してください。
 - Edge Runtime では `sharp` が動作しないため、API ルートに `export const runtime = "nodejs"` を必ず付与します。
 

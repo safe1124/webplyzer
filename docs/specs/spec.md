@@ -16,8 +16,9 @@ Webplyzer は Next.js 15（App Router + TypeScript）で構築された WebP 変
 ## 4. システム構成
 - **フレームワーク**: Next.js 15 App Router（`app/` ディレクトリ構成）
 - **言語**: TypeScript（strict 設定）
-- **UI**: React 18 + Tailwind CSS、ドラッグ&ドロップは `@dnd-kit/core`
-- **API**: `app/api/convert/route.ts` に実装した Node Runtime API。`NextResponse` でバイナリレスポンスを返却
+- **UI**: React 18 + Tailwind CSS、ドラッグ&ドロップは `sortablejs`
+- **API**: `app/api/convert/route.ts` に実装した Node Runtime API。Web 標準 `Response` でバイナリを返却
+- **バンドラー**: Turbopack（開発時 `next dev --turbo`）/ Next.js 標準ビルド（本番 `next build`）
 - **画像変換**: `sharp` による WebP 変換（品質 90、`rotate()` で EXIF 補正）
 - **ZIP 生成**: クライアント側で `jszip` を動的インポートして生成。サーバー側はフォールバックとして ZIP 返却可能
 - **ユーティリティ**: `lib/sanitizeFilename.ts` にファイル名サニタイズ・制約定義。`lib/i18n.ts` にロケール別文言
@@ -26,7 +27,7 @@ Webplyzer は Next.js 15（App Router + TypeScript）で構築された WebP 変
 ### 5.1 アップロード & 並べ替え
 - `.jpg`, `.jpeg`, `.png` のみ受け付け、最大 25 件まで保持
 - ファイル追加は入力ボタンまたはドラッグ&ドロップで行い、未対応拡張子は即時警告
-- `@dnd-kit` を用いたドラッグ操作でサムネイルカードを並べ替え。削除ボタンで個別除外
+- `SortableJS` を用いたドラッグ操作でサムネイルカードを並べ替え。削除ボタンで個別除外
 
 ### 5.2 ベース名指定
 - 初期値は `image`。入力値はクライアント・サーバー双方で `sanitizeFilename` により危険文字排除

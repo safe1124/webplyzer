@@ -7,18 +7,21 @@
 ## ディレクトリ構成
 ```text
 docs/
-├─ index.md            ... 本ファイル。インデックスと運用ルール
+├─ index.md                ... 本ファイル。インデックスと運用ルール
 ├─ specs/
-│  └─ spec.md          ... プロダクト要件・システム仕様
+│  └─ spec.md              ... プロダクト要件・システム仕様
 └─ dev/
-   └─ branch.md        ... ブランチ戦略・レビュー手順
+   ├─ branch.md            ... ブランチ戦略・レビュー手順
+   └─ turbopack-support.md ... Turbopack サポート状況と移行ガイド
 ```
 
 ## 各ドキュメントの概要
 - `docs/specs/spec.md`: Next.js 15 + Node Runtime 構成、変換 API の挙動、制約値（ファイル上限や品質）を記載。
 - `docs/dev/branch.md`: `main` ブランチ保護方針、ブランチ命名、コミット/PR テンプレートを定義。
+- `docs/dev/turbopack-support.md`: Next.js 15 における Turbopack のサポート状況と本番ビルドへの移行ガイド。
 - `../README.md`: セットアップ手順とユーザー向け機能概要。
 - `../AGENTS.md`: コントリビュータ向けガイドライン（プロジェクト構造、開発コマンド、レビュー要件）。
+- `../CLAUDE.md`: Claude Code 向け技術ガイド（アーキテクチャ、開発コマンド、AIエージェント向けヒント）。
 
 ## 更新ルール
 1. ドキュメントを追加・修正したら、概要と関連リンクをこのインデックスにも反映する。
