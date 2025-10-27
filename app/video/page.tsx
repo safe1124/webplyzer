@@ -213,7 +213,8 @@ export default function VideoConverterPage() {
         setUploadProgress(0)
 
         const { upload } = await import("@vercel/blob/client")
-        const uploadedBlob = await upload(current.file.name, current.file, {
+        const uniqueUploadName = `${crypto.randomUUID()}-${sanitizeFilename(current.file.name).replace(/\s+/g, "_")}`
+        const uploadedBlob = await upload(uniqueUploadName, current.file, {
           access: "public",
           handleUploadUrl: "/api/upload-video",
           onUploadProgress: ({ percentage }) => {
