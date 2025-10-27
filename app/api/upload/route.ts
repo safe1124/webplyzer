@@ -28,7 +28,7 @@ export async function POST(request: Request): Promise<NextResponse> {
             "image/heif-sequence",
             "image/webp",
           ],
-          maximumSizeInBytes: 200 * 1024 * 1024, // 200MB
+          maximumSizeInBytes: 20 * 1024 * 1024, // 20MB
           addRandomSuffix: true,
         }
       },

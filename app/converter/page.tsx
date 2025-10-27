@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { upload } from "@vercel/blob/client"
 import Sortable, { type SortableEvent } from "sortablejs"
 import clsx from "clsx"
-import { ALLOWED_EXTENSIONS, MAX_FILES, sanitizeFilename } from "@/lib/sanitizeFilename"
+import { ALLOWED_EXTENSIONS, MAX_FILES, MAX_FILE_SIZE_BYTES, sanitizeFilename } from "@/lib/sanitizeFilename"
 import { type Locale, localeOptions, messages } from "@/lib/i18n"
 
 type FileItem = {
@@ -155,6 +155,7 @@ export default function HomePage() {
 
     let blockedByLimit = false
     let rejectedUnsupported = false
+    let rejectedTooLarge = false
 
     setItems((prev) => {
       const next = [...prev]
@@ -168,6 +169,11 @@ export default function HomePage() {
         const extension = file.name.split(".").pop()?.toLowerCase() ?? ""
         if (!ALLOWED_EXTENSIONS.has(extension)) {
           rejectedUnsupported = true
+          continue
+        }
+
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+          rejectedTooLarge = true
           continue
         }
 
@@ -187,6 +193,8 @@ export default function HomePage() {
 
     if (blockedByLimit) {
       setFeedback({ tone: "error", text: `${t.error}: ${t.max_25_files}` })
+    } else if (rejectedTooLarge) {
+      setFeedback({ tone: "error", text: `${t.error}: ${t.file_too_large}` })
     } else if (rejectedUnsupported) {
       setFeedback({ tone: "error", text: `${t.error}: ${t.unsupported_file}` })
     } else {
@@ -210,6 +218,12 @@ export default function HomePage() {
 
     if (!items.length) {
       setFeedback({ tone: "error", text: t.no_file_selected })
+      return
+    }
+
+    const oversizedItem = items.find((item) => item.file.size > MAX_FILE_SIZE_BYTES)
+    if (oversizedItem) {
+      setFeedback({ tone: "error", text: `${t.error}: ${t.file_too_large}` })
       return
     }
 
@@ -481,7 +495,7 @@ export default function HomePage() {
                   <div className="text-5xl">📁</div>
                   <span className="text-base font-semibold text-slate-700">{t.upload_label}</span>
                   <p className="text-sm text-slate-500">
-                    JPG / JPEG / PNG / HEIC / HEIF · {t.max}: {MAX_FILES}
+                    JPG / JPEG / PNG / HEIC / HEIF · {t.max}: {MAX_FILES} · {t.max_file_size}
                   </p>
                   <input
                     ref={fileInputRef}

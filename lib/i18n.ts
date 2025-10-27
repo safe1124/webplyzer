@@ -15,6 +15,8 @@ type MessageKey =
   | "selected_files"
   | "files_unit"
   | "max"
+  | "file_too_large"
+  | "max_file_size"
   | "success_message"
   | "error"
   | "max_25_files"
@@ -89,6 +91,8 @@ export const messages: Record<Locale, Messages> = {
     selected_files: "選択中のファイル",
     files_unit: "件",
     max: "上限",
+    file_too_large: "ファイルサイズが20MBを超えています",
+    max_file_size: "1ファイル最大20MB",
     success_message: "変換が完了しました。",
     error: "エラー",
     max_25_files: "最大25ファイルまでアップロードできます",
@@ -151,6 +155,8 @@ export const messages: Record<Locale, Messages> = {
     selected_files: "Selected files",
     files_unit: "items",
     max: "max",
+    file_too_large: "File size exceeds 20MB",
+    max_file_size: "Max 20MB per file",
     success_message: "Conversion completed successfully.",
     error: "Error",
     max_25_files: "You can upload up to 25 files",
@@ -213,6 +219,8 @@ export const messages: Record<Locale, Messages> = {
     selected_files: "선택된 파일",
     files_unit: "개",
     max: "최대",
+    file_too_large: "파일 크기가 20MB를 초과합니다",
+    max_file_size: "파일당 최대 20MB",
     success_message: "변환이 완료되었습니다.",
     error: "오류",
     max_25_files: "최대 25개의 파일을 업로드할 수 있습니다",
