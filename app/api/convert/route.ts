@@ -70,16 +70,39 @@ export async function POST(req: Request) {
     const inputBuffer = Buffer.from(arrayBuffer);
     let pipeline = sharp(inputBuffer, { failOn: "none" }).rotate();
 
+    // 원본 이미지 메타데이터 확인
+    const metadata = await sharp(inputBuffer).metadata();
+    
+    // 사용자 지정 리사이즈 또는 자동 최적화
     if (maxWidth || maxHeight) {
+      // 사용자가 리사이즈를 지정한 경우
       pipeline = pipeline.resize({
         width: maxWidth,
         height: maxHeight,
         fit: maintainAspectRatio ? "inside" : "fill",
         withoutEnlargement: true,
       });
+    } else if (metadata.width && metadata.height) {
+      // 자동 최적화: 4K 이상 이미지는 자동으로 축소
+      const MAX_DIMENSION = 3840; // 4K 해상도
+      if (metadata.width > MAX_DIMENSION || metadata.height > MAX_DIMENSION) {
+        pipeline = pipeline.resize({
+          width: MAX_DIMENSION,
+          height: MAX_DIMENSION,
+          fit: "inside",
+          withoutEnlargement: true,
+        });
+      }
     }
 
-    const webpBuffer = await pipeline.webp({ quality }).toBuffer();
+    // WebP 압축 옵션 최적화
+    const webpBuffer = await pipeline.webp({
+      quality, // 사용자 설정 품질 (기본 90)
+      effort: 6, // 압축 노력도 (0-6, 높을수록 더 압축하지만 느림)
+      smartSubsample: true, // 스마트 서브샘플링으로 파일 크기 감소
+      nearLossless: false, // 무손실 압축 비활성화 (더 작은 파일)
+      alphaQuality: 100, // 투명도 품질 (알파 채널이 있는 경우)
+    }).toBuffer();
     
     // 날짜 기반 파일명 생성 (YYYYMMDD_숫자.webp)
     const now = new Date();
