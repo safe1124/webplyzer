@@ -122,6 +122,11 @@ function resolveBinary(
     candidates.push({ path: options.bundledPath, source: "bundled" })
   }
 
+  const installerPath = getInstallerBinaryPath(binaryName)
+  if (installerPath) {
+    candidates.push(installerPath)
+  }
+
   for (const fallbackPath of BINARY_FALLBACK_PATHS[binaryName]) {
     candidates.push({ path: fallbackPath, source: "fallback" })
   }
@@ -143,6 +148,58 @@ function resolveBinary(
       : "none"
 
   throw new Error(`Unable to locate ${binaryName} binary. Checked ${inspected}`)
+}
+
+function getInstallerBinaryPath(binaryName: BinaryName):
+  | {
+      path: string
+      source: string
+    }
+  | null {
+  const namespace =
+    binaryName === "ffmpeg" ? "@ffmpeg-installer" : "@ffprobe-installer"
+
+  const platform = process.platform
+  const arch = process.arch
+
+  let target: string | null = null
+
+  if (platform === "linux") {
+    if (arch === "x64" || arch === "ia32" || arch === "arm" || arch === "arm64") {
+      target = `linux-${arch}`
+    }
+  } else if (platform === "darwin") {
+    if (arch === "x64" || arch === "arm64") {
+      target = `darwin-${arch}`
+    }
+  } else if (platform === "win32") {
+    if (arch === "x64" || arch === "ia32") {
+      target = `win32-${arch}`
+    }
+  }
+
+  if (!target) {
+    return null
+  }
+
+  const binaryFilename = platform === "win32" ? `${binaryName}.exe` : binaryName
+  const candidateBases = [
+    join(process.cwd(), "node_modules", namespace, target, binaryFilename),
+    join(process.cwd(), ".next", "server", "node_modules", namespace, target, binaryFilename),
+  ]
+
+  for (const candidatePath of candidateBases) {
+    if (!candidatePath) continue
+    try {
+      if (existsSync(candidatePath)) {
+        return { path: candidatePath, source: "installer" }
+      }
+    } catch {
+      // Ignore and continue
+    }
+  }
+
+  return null
 }
 
 export async function POST(request: NextRequest) {
