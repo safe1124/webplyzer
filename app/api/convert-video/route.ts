@@ -6,35 +6,47 @@ import { tmpdir } from "os"
 import { join } from "path"
 import { execSync } from "child_process"
 import { del } from "@vercel/blob"
-import ffmpegInstaller from "@ffmpeg-installer/ffmpeg"
-import ffprobeInstaller from "@ffprobe-installer/ffprobe"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 export const maxDuration = 300 // 5 minutes for video conversion
 
-// Prefer bundled static FFmpeg/FFprobe binaries for consistent deployment behaviour.
-let ffmpegPath = ffmpegInstaller.path
-let ffprobePath = ffprobeInstaller.path
+// Initialize FFmpeg paths
+let ffmpegPath: string = "ffmpeg"
+let ffprobePath: string = "ffprobe"
 
-if (!process.env.VERCEL) {
-  // Local development: fall back to system binaries if available (often faster).
-  try {
-    const localFfmpeg = execSync("which ffmpeg").toString().trim()
-    if (localFfmpeg) {
-      ffmpegPath = localFfmpeg
-    }
-  } catch {
-    // Use bundled binary
+// Try to use system binaries first (works in most environments)
+try {
+  const localFfmpeg = execSync("which ffmpeg").toString().trim()
+  if (localFfmpeg) {
+    ffmpegPath = localFfmpeg
   }
-
+} catch {
+  // Try to load platform-specific installer only if system binary not found
   try {
-    const localFfprobe = execSync("which ffprobe").toString().trim()
-    if (localFfprobe) {
-      ffprobePath = localFfprobe
+    // Dynamic import to avoid build-time issues
+    const ffmpegInstaller = require("@ffmpeg-installer/ffmpeg")
+    if (ffmpegInstaller?.path) {
+      ffmpegPath = ffmpegInstaller.path
     }
-  } catch {
-    // Use bundled binary
+  } catch (error) {
+    console.warn("[convert-video] FFmpeg installer not available, using system binary")
+  }
+}
+
+try {
+  const localFfprobe = execSync("which ffprobe").toString().trim()
+  if (localFfprobe) {
+    ffprobePath = localFfprobe
+  }
+} catch {
+  try {
+    const ffprobeInstaller = require("@ffprobe-installer/ffprobe")
+    if (ffprobeInstaller?.path) {
+      ffprobePath = ffprobeInstaller.path
+    }
+  } catch (error) {
+    console.warn("[convert-video] FFprobe installer not available, using system binary")
   }
 }
 
