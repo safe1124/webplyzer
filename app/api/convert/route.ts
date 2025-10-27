@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import { uploadBufferToBlob, deleteFromBlob } from "@/lib/blob";
-import { ALLOWED_EXTENSIONS, sanitizeFilename } from "@/lib/sanitizeFilename";
+import { ALLOWED_EXTENSIONS } from "@/lib/sanitizeFilename";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,7 +48,6 @@ export async function POST(req: Request) {
       return Response.json({ error: "unsupported_file" }, { status: 400 });
     }
 
-    const safeBaseName = sanitizeFilename(payload.baseName) || "image";
     const qualityInput = Number.isFinite(payload.quality) ? Number(payload.quality) : 90;
     const quality = Math.max(QUALITY_MIN, Math.min(QUALITY_MAX, qualityInput));
     const maxWidth = Number.isFinite(payload.maxWidth) ? Math.max(1, Number(payload.maxWidth)) : undefined;

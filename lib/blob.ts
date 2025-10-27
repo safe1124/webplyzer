@@ -60,7 +60,7 @@ export async function handleDirectUpload(request: Request) {
 
     // 원본 이미지 압축 (Blob 저장 용량 절감)
     const bytes = await file.arrayBuffer()
-    let buffer = Buffer.from(bytes)
+    let buffer: Buffer = Buffer.from(bytes)
 
     // 이미지 압축 (JPEG/PNG만, 품질 85로 압축)
     const isCompressible = ["image/jpeg", "image/jpg", "image/png"].includes(file.type)
@@ -84,9 +84,10 @@ export async function handleDirectUpload(request: Request) {
         }
         
         // JPEG로 압축 (품질 85, 최적화)
-        buffer = await resizedImage
+        const compressed = await resizedImage
           .jpeg({ quality: 85, progressive: true, mozjpeg: true })
           .toBuffer()
+        buffer = Buffer.from(compressed.buffer as ArrayBuffer)
       } catch (error) {
         console.warn("[blob] Image compression failed, using original:", error)
         // 압축 실패 시 원본 사용

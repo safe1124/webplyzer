@@ -41,7 +41,24 @@ type MessageKey =
   | "pdf_compress_desc"
   | "video_compress_title"
   | "video_compress_desc"
-  | "coming_soon";
+  | "coming_soon"
+  | "video_title"
+  | "video_subtitle"
+  | "video_filename_label"
+  | "video_filename_placeholder"
+  | "video_upload_label"
+  | "video_convert_button"
+  | "video_converting"
+  | "video_success_message"
+  | "video_max_files"
+  | "video_unsupported_file"
+  | "video_file_too_large"
+  | "video_options_title"
+  | "video_codec_label"
+  | "video_bitrate_label"
+  | "loading_ffmpeg"
+  | "ffmpeg_ready"
+  | "ffmpeg_load_error";
 
 type Messages = Record<MessageKey, string>;
 
@@ -88,6 +105,23 @@ export const messages: Record<Locale, Messages> = {
     max_height: "最大高さ (px)",
     maintain_aspect_ratio: "縦横比を維持",
     options_title: "変換オプション",
+    video_title: "動画をWebMに変換",
+    video_subtitle: "MP4, MOV, AVI等をWebM（VP9/AV1）形式に一括変換",
+    video_filename_label: "変換後のベースファイル名",
+    video_filename_placeholder: "例: my-video",
+    video_upload_label: "動画を選択またはドラッグ＆ドロップ",
+    video_convert_button: "WebMに変換",
+    video_converting: "変換中",
+    video_success_message: "動画の変換が完了しました。",
+    video_max_files: "最大5ファイルまでアップロードできます（各200MB以内）",
+    video_unsupported_file: "このファイル形式はサポートされていません",
+    video_file_too_large: "ファイルサイズが200MBを超えています",
+    video_options_title: "変換オプション",
+    video_codec_label: "コーデック",
+    video_bitrate_label: "ビットレート",
+    loading_ffmpeg: "FFmpegを読み込み中...",
+    ffmpeg_ready: "FFmpeg準備完了",
+    ffmpeg_load_error: "FFmpegの読み込みに失敗しました",
   },
   en: {
     title: "Convert Images to WebP",
@@ -131,6 +165,23 @@ export const messages: Record<Locale, Messages> = {
     max_height: "Max height (px)",
     maintain_aspect_ratio: "Maintain aspect ratio",
     options_title: "Conversion Options",
+    video_title: "Convert Videos to WebM",
+    video_subtitle: "Batch convert MP4, MOV, AVI to WebM (VP9/AV1) format",
+    video_filename_label: "Base filename for converted videos",
+    video_filename_placeholder: "e.g. my-video",
+    video_upload_label: "Select or drag & drop videos",
+    video_convert_button: "Convert to WebM",
+    video_converting: "Converting",
+    video_success_message: "Video conversion completed successfully.",
+    video_max_files: "You can upload up to 5 files (max 200MB each)",
+    video_unsupported_file: "This file format is not supported",
+    video_file_too_large: "File size exceeds 200MB",
+    video_options_title: "Conversion Options",
+    video_codec_label: "Codec",
+    video_bitrate_label: "Bitrate",
+    loading_ffmpeg: "Loading FFmpeg...",
+    ffmpeg_ready: "FFmpeg Ready",
+    ffmpeg_load_error: "Failed to load FFmpeg",
   },
   ko: {
     title: "이미지를 WebP로 변환",
@@ -174,6 +225,23 @@ export const messages: Record<Locale, Messages> = {
     max_height: "최대 높이 (px)",
     maintain_aspect_ratio: "비율 유지",
     options_title: "변환 옵션",
+    video_title: "동영상을 WebM으로 변환",
+    video_subtitle: "MP4, MOV, AVI 등을 WebM (VP9/AV1) 형식으로 일괄 변환",
+    video_filename_label: "변환된 동영상의 기본 파일명",
+    video_filename_placeholder: "예: my-video",
+    video_upload_label: "동영상을 선택하거나 드래그 앤 드롭하세요",
+    video_convert_button: "WebM으로 변환",
+    video_converting: "변환 중",
+    video_success_message: "동영상 변환이 완료되었습니다.",
+    video_max_files: "최대 5개의 파일을 업로드할 수 있습니다 (각 200MB 이내)",
+    video_unsupported_file: "이 파일 형식은 지원되지 않습니다",
+    video_file_too_large: "파일 크기가 200MB를 초과합니다",
+    video_options_title: "변환 옵션",
+    video_codec_label: "코덱",
+    video_bitrate_label: "비트레이트",
+    loading_ffmpeg: "FFmpeg 로딩 중...",
+    ffmpeg_ready: "FFmpeg 준비 완료",
+    ffmpeg_load_error: "FFmpeg 로드 실패",
   },
 };
 
