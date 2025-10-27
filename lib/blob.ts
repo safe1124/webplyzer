@@ -2,6 +2,7 @@ import { put, del, type PutBlobResult } from "@vercel/blob"
 import { writeFile, unlink, mkdir } from "fs/promises"
 import { join } from "path"
 import { randomUUID } from "crypto"
+import sharp from "sharp"
 
 const MAX_UPLOAD_SIZE_BYTES = Number(process.env.BLOB_UPLOAD_MAX_SIZE ?? 200 * 1024 * 1024)
 
@@ -57,12 +58,43 @@ export async function handleDirectUpload(request: Request) {
       )
     }
 
+    // 원본 이미지 압축 (Blob 저장 용량 절감)
+    const bytes = await file.arrayBuffer()
+    let buffer = Buffer.from(bytes)
+
+    // 이미지 압축 (JPEG/PNG만, 품질 85로 압축)
+    const isCompressible = ["image/jpeg", "image/jpg", "image/png"].includes(file.type)
+    if (isCompressible) {
+      try {
+        const image = sharp(buffer)
+        const metadata = await image.metadata()
+        
+        // 4K 이상 이미지는 자동 리사이즈
+        const MAX_DIMENSION = 3840
+        let resizedImage = image
+        
+        if (metadata.width && metadata.height && 
+            (metadata.width > MAX_DIMENSION || metadata.height > MAX_DIMENSION)) {
+          resizedImage = image.resize({
+            width: MAX_DIMENSION,
+            height: MAX_DIMENSION,
+            fit: "inside",
+            withoutEnlargement: true,
+          })
+        }
+        
+        // JPEG로 압축 (품질 85, 최적화)
+        buffer = await resizedImage
+          .jpeg({ quality: 85, progressive: true, mozjpeg: true })
+          .toBuffer()
+      } catch (error) {
+        console.warn("[blob] Image compression failed, using original:", error)
+        // 압축 실패 시 원본 사용
+      }
+    }
+
     // Vercel Blob 사용 가능 여부 확인
     if (isUsingBlob()) {
-      // Blob에 직접 업로드
-      const bytes = await file.arrayBuffer()
-      const buffer = Buffer.from(bytes)
-      
       const ext = file.name.split(".").pop() || "jpg"
       const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "")
       const pathname = `${SOURCE_PREFIX}/${nameWithoutExt}_${randomUUID()}.${ext}`
@@ -79,7 +111,7 @@ export async function handleDirectUpload(request: Request) {
         url: result.url,
         pathname: result.pathname,
         contentType: file.type,
-        size: file.size,
+        size: buffer.length, // 압축된 크기
         downloadUrl: result.downloadUrl,
       })
     }
@@ -91,8 +123,6 @@ export async function handleDirectUpload(request: Request) {
     const filename = `${randomUUID()}_${file.name}`
     const filepath = join(uploadsDir, filename)
 
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
     await writeFile(filepath, buffer)
 
     const url = `/uploads/${filename}`
@@ -100,7 +130,7 @@ export async function handleDirectUpload(request: Request) {
       url,
       pathname: filename,
       contentType: file.type,
-      size: file.size,
+      size: buffer.length, // 압축된 크기
       downloadUrl: url,
     })
   } catch (error) {
