@@ -25,6 +25,18 @@ type Feedback = {
   text: string
 } | null
 
+class ConversionError extends Error {
+  details?: string
+  status?: number
+
+  constructor(message: string, options?: { details?: string; status?: number }) {
+    super(message)
+    this.name = "ConversionError"
+    this.details = options?.details
+    this.status = options?.status
+  }
+}
+
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement("a")
@@ -163,7 +175,12 @@ export default function VideoConverterPage() {
             // Parse JSON error
             const text = await xhr.response.text()
             const errorData = JSON.parse(text)
-            reject(new Error(errorData.error || "Conversion failed"))
+            reject(
+              new ConversionError(errorData.error || "Conversion failed", {
+                details: errorData.details,
+                status: xhr.status,
+              })
+            )
           } else {
             resolve(xhr.response)
           }
@@ -172,15 +189,20 @@ export default function VideoConverterPage() {
           try {
             const text = await xhr.response.text()
             const errorData = JSON.parse(text)
-            reject(new Error(errorData.error || `HTTP ${xhr.status}`))
+            reject(
+              new ConversionError(errorData.error || `HTTP ${xhr.status}`, {
+                details: errorData.details,
+                status: xhr.status,
+              })
+            )
           } catch {
-            reject(new Error(`HTTP ${xhr.status}`))
+            reject(new ConversionError(`HTTP ${xhr.status}`, { status: xhr.status }))
           }
         }
       })
 
       xhr.addEventListener("error", () => {
-        reject(new Error("Network error"))
+        reject(new ConversionError("Network error"))
       })
 
       xhr.open("POST", "/api/convert-video")
@@ -257,14 +279,23 @@ export default function VideoConverterPage() {
       })
     } catch (error) {
       console.error("[VideoConverter] Error:", error)
-      const errorMessage = error instanceof Error ? error.message : String(error)
-
-      if (errorMessage.includes("video_conversion_failed")) {
-        setFeedback({ tone: "error", text: t.video_conversion_failed })
-      } else if (errorMessage.includes("Network error")) {
-        setFeedback({ tone: "error", text: "ネットワークエラーが発生しました" })
+      if (error instanceof ConversionError) {
+        if (error.message.includes("video_conversion_failed")) {
+          const detailText = error.details ? `${t.video_conversion_failed}: ${error.details}` : t.video_conversion_failed
+          setFeedback({ tone: "error", text: detailText })
+        } else if (error.message.includes("Network error")) {
+          setFeedback({ tone: "error", text: "ネットワークエラーが発生しました" })
+        } else {
+          const detailText = error.details ? `${t.conversion_error}: ${error.details}` : t.conversion_error
+          setFeedback({ tone: "error", text: detailText })
+        }
       } else {
-        setFeedback({ tone: "error", text: t.conversion_error })
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        if (errorMessage.includes("Network error")) {
+          setFeedback({ tone: "error", text: "ネットワークエラーが発生しました" })
+        } else {
+          setFeedback({ tone: "error", text: t.conversion_error })
+        }
       }
     } finally {
       setIsConverting(false)

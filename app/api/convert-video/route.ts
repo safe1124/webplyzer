@@ -6,27 +6,40 @@ import { tmpdir } from "os"
 import { join } from "path"
 import { execSync } from "child_process"
 import { del } from "@vercel/blob"
+import ffmpegInstaller from "@ffmpeg-installer/ffmpeg"
+import ffprobeInstaller from "@ffprobe-installer/ffprobe"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 export const maxDuration = 300 // 5 minutes for video conversion
 
-// Set FFmpeg path for different environments
-if (process.env.VERCEL) {
-  // Vercel provides FFmpeg at /usr/bin/ffmpeg
-  ffmpeg.setFfmpegPath("/usr/bin/ffmpeg")
-  ffmpeg.setFfprobePath("/usr/bin/ffprobe")
-} else {
-  // Local development: try to detect FFmpeg from common paths
+// Prefer bundled static FFmpeg/FFprobe binaries for consistent deployment behaviour.
+let ffmpegPath = ffmpegInstaller.path
+let ffprobePath = ffprobeInstaller.path
+
+if (!process.env.VERCEL) {
+  // Local development: fall back to system binaries if available (often faster).
   try {
-    const ffmpegPath = execSync("which ffmpeg").toString().trim()
-    const ffprobePath = execSync("which ffprobe").toString().trim()
-    if (ffmpegPath) ffmpeg.setFfmpegPath(ffmpegPath)
-    if (ffprobePath) ffmpeg.setFfprobePath(ffprobePath)
-  } catch (error) {
-    console.warn("[convert-video] FFmpeg not found in PATH, using system default")
+    const localFfmpeg = execSync("which ffmpeg").toString().trim()
+    if (localFfmpeg) {
+      ffmpegPath = localFfmpeg
+    }
+  } catch {
+    // Use bundled binary
+  }
+
+  try {
+    const localFfprobe = execSync("which ffprobe").toString().trim()
+    if (localFfprobe) {
+      ffprobePath = localFfprobe
+    }
+  } catch {
+    // Use bundled binary
   }
 }
+
+ffmpeg.setFfmpegPath(ffmpegPath)
+ffmpeg.setFfprobePath(ffprobePath)
 
 export async function POST(request: NextRequest) {
   try {
