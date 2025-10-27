@@ -50,6 +50,7 @@ export default function VideoConverterPage() {
   const [feedback, setFeedback] = useState<Feedback>(null)
   const [isConverting, setIsConverting] = useState(false)
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [locale, setLocale] = useState<Locale>("ja")
   const [bitrate, setBitrate] = useState("1M")
 
@@ -140,6 +141,38 @@ export default function VideoConverterPage() {
     setFeedback({ tone: "success", text: t.file_removed })
   }
 
+  const uploadFileWithProgress = (
+    formData: FormData,
+    onProgress: (percent: number) => void
+  ): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+
+      xhr.upload.addEventListener("progress", (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = Math.round((e.loaded / e.total) * 100)
+          onProgress(percentComplete)
+        }
+      })
+
+      xhr.addEventListener("load", () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(xhr.response)
+        } else {
+          reject(new Error(`HTTP ${xhr.status}`))
+        }
+      })
+
+      xhr.addEventListener("error", () => {
+        reject(new Error("Network error"))
+      })
+
+      xhr.open("POST", "/api/convert-video")
+      xhr.responseType = "blob"
+      xhr.send(formData)
+    })
+  }
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
@@ -160,24 +193,19 @@ export default function VideoConverterPage() {
         setProgress({ current: index + 1, total: items.length })
         const current = items[index]
 
-        // サーバーに送信
         const formData = new FormData()
         formData.append("file", current.file)
         formData.append("bitrate", bitrate)
         formData.append("baseName", safeBaseName)
         formData.append("fileIndex", (index + 1).toString())
 
-        const response = await fetch("/api/convert-video", {
-          method: "POST",
-          body: formData,
+        // Upload with progress
+        setUploadProgress(0)
+        const blob = await uploadFileWithProgress(formData, (percent) => {
+          setUploadProgress(percent)
         })
+        setUploadProgress(null)
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.error || "Conversion failed")
-        }
-
-        const blob = await response.blob()
         const outputName = `${safeBaseName}_${index + 1}.webm`
         converted.push({ blob, name: outputName })
       }
@@ -195,10 +223,19 @@ export default function VideoConverterPage() {
       })
     } catch (error) {
       console.error("[VideoConverter] Error:", error)
-      setFeedback({ tone: "error", text: t.conversion_error })
+      const errorMessage = error instanceof Error ? error.message : String(error)
+
+      if (errorMessage.includes("video_conversion_failed")) {
+        setFeedback({ tone: "error", text: t.video_conversion_failed })
+      } else if (errorMessage.includes("Network error")) {
+        setFeedback({ tone: "error", text: "ネットワークエラーが発生しました" })
+      } else {
+        setFeedback({ tone: "error", text: t.conversion_error })
+      }
     } finally {
       setIsConverting(false)
       setProgress(null)
+      setUploadProgress(null)
     }
   }
 
@@ -414,18 +451,35 @@ export default function VideoConverterPage() {
                 </button>
 
                 {progress && (
-                  <div className="space-y-2">
-                    <div className="h-2 overflow-hidden rounded-full bg-white/60 shadow-inner backdrop-blur-xl">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 shadow-sm transition-all duration-300"
-                        style={{
-                          width: `${Math.round((progress.current / progress.total) * 100)}%`,
-                        }}
-                      />
+                  <div className="space-y-3">
+                    {uploadProgress !== null && (
+                      <div className="space-y-2">
+                        <p className="text-center text-xs font-semibold text-purple-600">
+                          📤 {t.uploading}... {uploadProgress}%
+                        </p>
+                        <div className="h-2 overflow-hidden rounded-full bg-white/60 shadow-inner backdrop-blur-xl">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 shadow-sm transition-all duration-300"
+                            style={{
+                              width: `${uploadProgress}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <p className="text-center text-xs font-semibold text-pink-600">
+                        🎬 {t.video_converting} {progress.current}/{progress.total}
+                      </p>
+                      <div className="h-2 overflow-hidden rounded-full bg-white/60 shadow-inner backdrop-blur-xl">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 shadow-sm transition-all duration-300"
+                          style={{
+                            width: `${Math.round((progress.current / progress.total) * 100)}%`,
+                          }}
+                        />
+                      </div>
                     </div>
-                    <p className="text-center text-xs font-medium text-slate-500">
-                      {t.video_converting} {progress.current}/{progress.total}
-                    </p>
                   </div>
                 )}
               </div>

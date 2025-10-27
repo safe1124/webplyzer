@@ -149,9 +149,13 @@ MP4, MOV, AVI, MKV などの動画ファイルを WebM（VP9/AV1）形式に変�
 
 ### 9.9 Vercel デプロイ時の注意事項
 - **FFmpegインストール**: Vercelビルド時にFFmpegバイナリが自動的にインストールされる
+  - APIルートで明示的にFFmpegパスを設定: `/usr/bin/ffmpeg`
 - **タイムアウト設定**: `maxDuration=300`（Free tier: 10秒、Pro tier: 300秒）
 - **メモリ制限**: Serverless Functionsのメモリ制限に注意（最大1024MB）
 - **代替案**: 大容量動画の場合、AWS Lambda + EFS や専用サーバーの検討が必要
+- **進捗表示**:
+  - アップロード進捗: XMLHttpRequestでアップロード進行率をリアルタイム表示
+  - 変換進捗: ファイル単位の進捗バー表示（現在/総数）
 
 ### 9.10 今後の改善案
 - 動画プレビュー機能（変換前後の比較）

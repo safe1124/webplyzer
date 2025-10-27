@@ -6,6 +6,13 @@ export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 export const maxDuration = 300 // 5 minutes for video conversion
 
+// Set FFmpeg path for Vercel
+if (process.env.VERCEL) {
+  // Vercel provides FFmpeg at /usr/bin/ffmpeg
+  ffmpeg.setFfmpegPath("/usr/bin/ffmpeg")
+  ffmpeg.setFfprobePath("/usr/bin/ffprobe")
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
@@ -30,8 +37,8 @@ export async function POST(request: NextRequest) {
     // Create output buffer
     const chunks: Buffer[] = []
 
-    return new Promise<Response>((resolve) => {
-      ffmpeg(readableStream)
+    return new Promise<Response>((resolve, reject) => {
+      const command = ffmpeg(readableStream)
         .outputFormat("webm")
         .videoCodec("libvpx-vp9")
         .videoBitrate(bitrate)
@@ -47,7 +54,7 @@ export async function POST(request: NextRequest) {
           console.error("[FFmpeg] Error:", err)
           resolve(
             Response.json(
-              { error: "Video conversion failed", details: err.message },
+              { error: "video_conversion_failed", details: err.message },
               { status: 500 }
             )
           )
@@ -55,8 +62,18 @@ export async function POST(request: NextRequest) {
         .on("end", () => {
           console.log("[FFmpeg] Conversion finished")
           const outputBuffer = Buffer.concat(chunks)
-          const outputName = `${baseName}_${fileIndex}.webm`
 
+          if (outputBuffer.length === 0) {
+            resolve(
+              Response.json(
+                { error: "video_conversion_failed", details: "Empty output buffer" },
+                { status: 500 }
+              )
+            )
+            return
+          }
+
+          const outputName = `${baseName}_${fileIndex}.webm`
           resolve(
             new Response(outputBuffer, {
               status: 200,
@@ -68,10 +85,15 @@ export async function POST(request: NextRequest) {
             })
           )
         })
-        .pipe()
-        .on("data", (chunk: Buffer) => {
-          chunks.push(chunk)
-        })
+
+      const stream = command.pipe()
+      stream.on("data", (chunk: Buffer) => {
+        chunks.push(chunk)
+      })
+      stream.on("error", (err) => {
+        console.error("[FFmpeg] Stream error:", err)
+        reject(err)
+      })
     })
   } catch (error) {
     console.error("[convert-video] Error:", error)

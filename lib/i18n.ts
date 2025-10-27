@@ -58,7 +58,9 @@ type MessageKey =
   | "video_bitrate_label"
   | "loading_ffmpeg"
   | "ffmpeg_ready"
-  | "ffmpeg_load_error";
+  | "ffmpeg_load_error"
+  | "uploading"
+  | "video_conversion_failed";
 
 type Messages = Record<MessageKey, string>;
 
@@ -122,6 +124,8 @@ export const messages: Record<Locale, Messages> = {
     loading_ffmpeg: "FFmpegを読み込み中...",
     ffmpeg_ready: "FFmpeg準備完了",
     ffmpeg_load_error: "FFmpegの読み込みに失敗しました",
+    uploading: "アップロード中",
+    video_conversion_failed: "動画の変換に失敗しました",
   },
   en: {
     title: "Convert Images to WebP",
@@ -182,6 +186,8 @@ export const messages: Record<Locale, Messages> = {
     loading_ffmpeg: "Loading FFmpeg...",
     ffmpeg_ready: "FFmpeg Ready",
     ffmpeg_load_error: "Failed to load FFmpeg",
+    uploading: "Uploading",
+    video_conversion_failed: "Video conversion failed",
   },
   ko: {
     title: "이미지를 WebP로 변환",
@@ -242,6 +248,8 @@ export const messages: Record<Locale, Messages> = {
     loading_ffmpeg: "FFmpeg 로딩 중...",
     ffmpeg_ready: "FFmpeg 준비 완료",
     ffmpeg_load_error: "FFmpeg 로드 실패",
+    uploading: "업로드 중",
+    video_conversion_failed: "동영상 변환 실패",
   },
 };
 
