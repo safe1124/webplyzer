@@ -21,7 +21,14 @@ type MessageKey =
   | "footer_text"
   | "file_removed"
   | "conversion_error"
-  | "unsupported_file";
+  | "unsupported_file"
+  | "quality_label"
+  | "resize_label"
+  | "enable_resize"
+  | "max_width"
+  | "max_height"
+  | "maintain_aspect_ratio"
+  | "options_title";
 
 type Messages = Record<MessageKey, string>;
 
@@ -48,6 +55,13 @@ export const messages: Record<Locale, Messages> = {
     file_removed: "ファイルを削除しました",
     conversion_error: "変換に失敗しました。再度お試しください。",
     unsupported_file: "このファイル形式はサポートされていません（JPG/JPEG/PNGのみ）。",
+    quality_label: "品質",
+    resize_label: "リサイズ",
+    enable_resize: "リサイズを有効にする",
+    max_width: "最大幅 (px)",
+    max_height: "最大高さ (px)",
+    maintain_aspect_ratio: "縦横比を維持",
+    options_title: "変換オプション",
   },
   en: {
     title: "Webplyzer - Batch WebP Converter",
@@ -71,6 +85,13 @@ export const messages: Record<Locale, Messages> = {
     file_removed: "File removed",
     conversion_error: "Conversion failed. Please try again.",
     unsupported_file: "Only JPG, JPEG, or PNG files are supported.",
+    quality_label: "Quality",
+    resize_label: "Resize",
+    enable_resize: "Enable resize",
+    max_width: "Max width (px)",
+    max_height: "Max height (px)",
+    maintain_aspect_ratio: "Maintain aspect ratio",
+    options_title: "Conversion Options",
   },
   ko: {
     title: "Webplyzer - WebP 일괄 변환 도구",
@@ -94,6 +115,13 @@ export const messages: Record<Locale, Messages> = {
     file_removed: "파일이 삭제되었습니다",
     conversion_error: "변환에 실패했습니다. 다시 시도하세요.",
     unsupported_file: "JPG, JPEG, PNG 파일만 지원됩니다.",
+    quality_label: "품질",
+    resize_label: "리사이즈",
+    enable_resize: "리사이즈 활성화",
+    max_width: "최대 너비 (px)",
+    max_height: "최대 높이 (px)",
+    maintain_aspect_ratio: "비율 유지",
+    options_title: "변환 옵션",
   },
 };
 

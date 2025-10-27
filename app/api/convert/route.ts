@@ -18,6 +18,11 @@ export async function POST(req: Request) {
     const files = formData.getAll("files") as File[];
     const fileIndexOverride = Number(formData.get("file_index"));
 
+    const quality = Number(formData.get("quality")) || 90;
+    const maxWidth = formData.get("max_width") ? Number(formData.get("max_width")) : undefined;
+    const maxHeight = formData.get("max_height") ? Number(formData.get("max_height")) : undefined;
+    const maintainAspectRatio = formData.get("maintain_aspect_ratio") === "true";
+
     if (!files.length) {
       return Response.json({ error: "no_file" }, { status: 400 });
     }
@@ -39,9 +44,19 @@ export async function POST(req: Request) {
       const arrayBuffer = await file.arrayBuffer();
       const inputBuffer = Buffer.from(arrayBuffer);
 
-      const webpBuffer = await sharp(inputBuffer, { failOn: "none" })
-        .rotate()
-        .webp({ quality: 90 })
+      let pipeline = sharp(inputBuffer, { failOn: "none" }).rotate();
+
+      if (maxWidth || maxHeight) {
+        pipeline = pipeline.resize({
+          width: maxWidth,
+          height: maxHeight,
+          fit: maintainAspectRatio ? "inside" : "fill",
+          withoutEnlargement: true,
+        });
+      }
+
+      const webpBuffer = await pipeline
+        .webp({ quality: Math.max(50, Math.min(100, quality)) })
         .toBuffer();
 
       const ordinal =
