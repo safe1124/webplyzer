@@ -25,6 +25,7 @@ try {
   // Try to load platform-specific installer only if system binary not found
   try {
     // Dynamic import to avoid build-time issues
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const ffmpegInstaller = require("@ffmpeg-installer/ffmpeg")
     if (ffmpegInstaller?.path) {
       ffmpegPath = ffmpegInstaller.path
@@ -41,6 +42,7 @@ try {
   }
 } catch {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const ffprobeInstaller = require("@ffprobe-installer/ffprobe")
     if (ffprobeInstaller?.path) {
       ffprobePath = ffprobeInstaller.path
