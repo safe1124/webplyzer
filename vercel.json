@@ -6,10 +6,7 @@
   "functions": {
     "app/api/convert-video/route.ts": {
       "maxDuration": 300,
-      "includeFiles": [
-        "node_modules/@ffmpeg-installer/**",
-        "node_modules/@ffprobe-installer/**"
-      ]
+      "includeFiles": "node_modules/@ff*installer/**"
     }
   }
 }
