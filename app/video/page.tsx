@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import clsx from "clsx"
 import {
   ALLOWED_VIDEO_EXTENSIONS,
@@ -25,13 +25,19 @@ type Feedback = {
   text: string
 } | null
 
+// @ffmpeg/ffmpeg 0.12+ uses FFmpeg class directly
+type FFmpegInstance = import("@ffmpeg/ffmpeg").FFmpeg
+type FetchFileFn = typeof import("@ffmpeg/util").fetchFile
+
 class ConversionError extends Error {
+  code: string
   details?: string
   status?: number
 
-  constructor(message: string, options?: { details?: string; status?: number }) {
-    super(message)
+  constructor(code: string, options?: { details?: string; status?: number }) {
+    super(code)
     this.name = "ConversionError"
+    this.code = code
     this.details = options?.details
     this.status = options?.status
   }
@@ -62,12 +68,15 @@ export default function VideoConverterPage() {
   const [feedback, setFeedback] = useState<Feedback>(null)
   const [isConverting, setIsConverting] = useState(false)
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null)
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  const [conversionProgress, setConversionProgress] = useState<number | null>(null)
+  const [isFfmpegLoading, setIsFfmpegLoading] = useState(false)
   const [locale, setLocale] = useState<Locale>("ja")
   const [bitrate, setBitrate] = useState("1M")
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const dropRef = useRef<HTMLLabelElement | null>(null)
+  const ffmpegRef = useRef<FFmpegInstance | null>(null)
+  const fetchFileRef = useRef<FetchFileFn | null>(null)
 
   const t = useMemo(() => messages[locale], [locale])
 
@@ -88,6 +97,56 @@ export default function VideoConverterPage() {
       items.forEach((item) => URL.revokeObjectURL(item.previewUrl))
     }
   }, [items])
+
+  useEffect(() => {
+    return () => {
+      const instance = ffmpegRef.current
+      if (instance && typeof instance.terminate === "function") {
+        void instance.terminate()
+      }
+    }
+  }, [])
+
+  const ensureFFmpeg = useCallback(async () => {
+    if (ffmpegRef.current && fetchFileRef.current) {
+      return { ffmpeg: ffmpegRef.current, fetchFile: fetchFileRef.current }
+    }
+
+    setIsFfmpegLoading(true)
+    setFeedback({ tone: "info", text: t.loading_ffmpeg })
+
+    try {
+      const { FFmpeg } = await import("@ffmpeg/ffmpeg")
+      const { toBlobURL, fetchFile } = await import("@ffmpeg/util")
+      
+      const ffmpegInstance = new FFmpeg()
+      
+      if (process.env.NODE_ENV !== "production") {
+        ffmpegInstance.on("log", ({ message }) => {
+          console.log("[FFmpeg]", message)
+        })
+      }
+
+      ffmpegRef.current = ffmpegInstance
+      fetchFileRef.current = fetchFile
+
+      const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm"
+      
+      await ffmpegInstance.load({
+        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+      })
+
+      setFeedback({ tone: "success", text: t.ffmpeg_ready })
+
+      return { ffmpeg: ffmpegInstance, fetchFile }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new ConversionError("ffmpeg_load_failed", { details: message })
+    } finally {
+      setIsFfmpegLoading(false)
+    }
+  }, [t])
 
   const handleFilesAdded = (files: FileList | File[]) => {
     const incoming = Array.from(files)
@@ -153,64 +212,6 @@ export default function VideoConverterPage() {
     setFeedback({ tone: "success", text: t.file_removed })
   }
 
-  const uploadFileWithProgress = (
-    formData: FormData,
-    onProgress: (percent: number) => void
-  ): Promise<Blob> => {
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest()
-
-      xhr.upload.addEventListener("progress", (e) => {
-        if (e.lengthComputable) {
-          const percentComplete = Math.round((e.loaded / e.total) * 100)
-          onProgress(percentComplete)
-        }
-      })
-
-      xhr.addEventListener("load", async () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          // Check if response is JSON (error) or blob (success)
-          const contentType = xhr.getResponseHeader("content-type")
-          if (contentType && contentType.includes("application/json")) {
-            // Parse JSON error
-            const text = await xhr.response.text()
-            const errorData = JSON.parse(text)
-            reject(
-              new ConversionError(errorData.error || "Conversion failed", {
-                details: errorData.details,
-                status: xhr.status,
-              })
-            )
-          } else {
-            resolve(xhr.response)
-          }
-        } else {
-          // Try to parse error response
-          try {
-            const text = await xhr.response.text()
-            const errorData = JSON.parse(text)
-            reject(
-              new ConversionError(errorData.error || `HTTP ${xhr.status}`, {
-                details: errorData.details,
-                status: xhr.status,
-              })
-            )
-          } catch {
-            reject(new ConversionError(`HTTP ${xhr.status}`, { status: xhr.status }))
-          }
-        }
-      })
-
-      xhr.addEventListener("error", () => {
-        reject(new ConversionError("Network error"))
-      })
-
-      xhr.open("POST", "/api/convert-video")
-      xhr.responseType = "blob"
-      xhr.send(formData)
-    })
-  }
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
@@ -225,46 +226,85 @@ export default function VideoConverterPage() {
     setFeedback(null)
 
     try {
+      const { ffmpeg, fetchFile } = await ensureFFmpeg()
+
+      if (!ffmpeg || !fetchFile) {
+        throw new ConversionError("ffmpeg_load_failed")
+      }
+
+      setFeedback({ tone: "info", text: t.video_converting })
+
       const converted: Array<{ blob: Blob; name: string }> = []
 
       for (let index = 0; index < items.length; index += 1) {
         setProgress({ current: index + 1, total: items.length })
         const current = items[index]
-
-        // Step 1: Upload directly to Vercel Blob using client-side upload
-        setUploadProgress(0)
-
-        const { upload } = await import("@vercel/blob/client")
-        const uniqueUploadName = `${crypto.randomUUID()}-${sanitizeFilename(current.file.name).replace(/\s+/g, "_")}`
-        const uploadedBlob = await upload(uniqueUploadName, current.file, {
-          access: "public",
-          handleUploadUrl: "/api/upload-video",
-          onUploadProgress: ({ percentage }) => {
-            setUploadProgress(Math.round(percentage))
-          },
-        })
-
-        const blobUrl = uploadedBlob.url
-        const pathname = uploadedBlob.pathname
-        setUploadProgress(100)
-
-        // Step 2: Convert from Blob URL
-        const convertFormData = new FormData()
-        convertFormData.append("blobUrl", blobUrl)
-        convertFormData.append("blobPathname", pathname)
-        convertFormData.append("bitrate", bitrate)
-        convertFormData.append("baseName", safeBaseName)
-        convertFormData.append("fileIndex", (index + 1).toString())
-        convertFormData.append("extension", current.file.name.split('.').pop() || 'mp4')
-
-        const convertedBlob = await uploadFileWithProgress(convertFormData, () => {
-          // Conversion progress tracking not available for Blob-based conversion
-        })
-        setUploadProgress(null)
-
+        const originalExtension = current.file.name.split(".").pop()?.toLowerCase() || "mp4"
+        const inputName = `input_${index + 1}.${originalExtension}`
+        const outputTempName = `output_${index + 1}.webm`
         const outputName = `${safeBaseName}_${index + 1}.webm`
-        converted.push({ blob: convertedBlob, name: outputName })
+
+        try {
+          const fileData = await fetchFile(current.file)
+          await ffmpeg.writeFile(inputName, fileData)
+        } catch (error) {
+          throw new ConversionError("video_conversion_failed", {
+            details: error instanceof Error ? error.message : String(error),
+          })
+        }
+
+        ffmpeg.on("progress", ({ progress }) => {
+          const percentage = Math.min(100, Math.max(0, Math.round(progress * 100)))
+          setConversionProgress(percentage)
+        })
+        setConversionProgress(0)
+
+        try {
+          await ffmpeg.exec([
+            "-i",
+            inputName,
+            "-c:v",
+            "libvpx-vp9",
+            "-b:v",
+            bitrate,
+            "-c:a",
+            "libopus",
+            "-b:a",
+            "128k",
+            "-deadline",
+            "realtime",
+            "-cpu-used",
+            "4",
+            outputTempName,
+          ])
+
+          const outputData = await ffmpeg.readFile(outputTempName)
+          // Convert FileData to buffer that Blob can accept
+          const buffer = typeof outputData === 'string' 
+            ? new TextEncoder().encode(outputData).buffer
+            : (outputData as Uint8Array).buffer as ArrayBuffer
+          const blob = new Blob([buffer], { type: "video/webm" })
+          converted.push({ blob, name: outputName })
+        } catch (error) {
+          throw new ConversionError("video_conversion_failed", {
+            details: error instanceof Error ? error.message : String(error),
+          })
+        } finally {
+          setConversionProgress(null)
+          try {
+            await ffmpeg.deleteFile(inputName)
+          } catch {
+            // ignore file cleanup errors
+          }
+          try {
+            await ffmpeg.deleteFile(outputTempName)
+          } catch {
+            // ignore file cleanup errors
+          }
+        }
       }
+
+      // Clear progress listener (FFmpeg 0.12 uses event-based progress)
 
       if (converted.length === 1) {
         downloadBlob(converted[0].blob, converted[0].name)
@@ -280,27 +320,24 @@ export default function VideoConverterPage() {
     } catch (error) {
       console.error("[VideoConverter] Error:", error)
       if (error instanceof ConversionError) {
-        if (error.message.includes("video_conversion_failed")) {
+        if (error.code === "ffmpeg_load_failed") {
+          const detailText = error.details ? `${t.ffmpeg_load_error}: ${error.details}` : t.ffmpeg_load_error
+          setFeedback({ tone: "error", text: detailText })
+        } else if (error.code === "video_conversion_failed") {
           const detailText = error.details ? `${t.video_conversion_failed}: ${error.details}` : t.video_conversion_failed
           setFeedback({ tone: "error", text: detailText })
-        } else if (error.message.includes("Network error")) {
-          setFeedback({ tone: "error", text: "ネットワークエラーが発生しました" })
         } else {
           const detailText = error.details ? `${t.conversion_error}: ${error.details}` : t.conversion_error
           setFeedback({ tone: "error", text: detailText })
         }
       } else {
         const errorMessage = error instanceof Error ? error.message : String(error)
-        if (errorMessage.includes("Network error")) {
-          setFeedback({ tone: "error", text: "ネットワークエラーが発生しました" })
-        } else {
-          setFeedback({ tone: "error", text: t.conversion_error })
-        }
+        setFeedback({ tone: "error", text: `${t.conversion_error}: ${errorMessage}` })
       }
     } finally {
       setIsConverting(false)
       setProgress(null)
-      setUploadProgress(null)
+      setConversionProgress(null)
     }
   }
 
@@ -517,20 +554,23 @@ export default function VideoConverterPage() {
 
                 {progress && (
                   <div className="space-y-3">
-                    {uploadProgress !== null && (
+                    {conversionProgress !== null && (
                       <div className="space-y-2">
                         <p className="text-center text-xs font-semibold text-purple-600">
-                          📤 {t.uploading}... {uploadProgress}%
+                          🎞️ {t.video_converting}... {conversionProgress}%
                         </p>
                         <div className="h-2 overflow-hidden rounded-full bg-white/60 shadow-inner backdrop-blur-xl">
                           <div
                             className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 shadow-sm transition-all duration-300"
                             style={{
-                              width: `${uploadProgress}%`,
+                              width: `${conversionProgress}%`,
                             }}
                           />
                         </div>
                       </div>
+                    )}
+                    {isFfmpegLoading && (
+                      <p className="text-center text-xs font-semibold text-slate-500">{t.loading_ffmpeg}</p>
                     )}
                     <div className="space-y-2">
                       <p className="text-center text-xs font-semibold text-pink-600">

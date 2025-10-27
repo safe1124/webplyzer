@@ -51,7 +51,7 @@ export default function HomePage() {
       icon: "🎥",
       title: t.video_compress_title,
       description: t.video_compress_desc,
-      href: "/video",
+      comingSoon: true,
     },
   ]
 
