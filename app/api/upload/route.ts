@@ -11,7 +11,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const jsonResponse = await handleUpload({
       body,
       request,
-      onBeforeGenerateToken: async (pathname /*, clientPayload */) => {
+      onBeforeGenerateToken: async () => {
         // Generate a client token for the browser to upload the file
         // Make sure to authenticate and authorize users before generating the token.
         
@@ -32,7 +32,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           addRandomSuffix: true,
         }
       },
-      onUploadCompleted: async ({ blob, tokenPayload }) => {
+      onUploadCompleted: async ({ blob }) => {
         // Called by Vercel API on client upload completion
         console.log("[upload] blob upload completed", blob.url)
 
