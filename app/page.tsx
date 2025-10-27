@@ -94,20 +94,16 @@ export default function HomePage() {
 
         <main className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {tools.map((tool) => {
-            const Card = tool.href && !tool.comingSoon ? Link : "div"
-            const cardProps = tool.href && !tool.comingSoon ? { href: tool.href } : {}
+            const isLink = tool.href && !tool.comingSoon
+            const cardClasses = clsx(
+              "group relative flex flex-col gap-6 rounded-3xl border border-white/60 bg-white/40 p-8 shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] backdrop-blur-2xl backdrop-saturate-150 transition-all duration-300",
+              tool.comingSoon
+                ? "cursor-not-allowed opacity-60"
+                : "cursor-pointer hover:-translate-y-2 hover:shadow-[0_12px_40px_0_rgba(31,38,135,0.25)]",
+            )
 
-            return (
-              <Card
-                key={tool.id}
-                {...cardProps}
-                className={clsx(
-                  "group relative flex flex-col gap-6 rounded-3xl border border-white/60 bg-white/40 p-8 shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] backdrop-blur-2xl backdrop-saturate-150 transition-all duration-300",
-                  tool.comingSoon
-                    ? "cursor-not-allowed opacity-60"
-                    : "cursor-pointer hover:-translate-y-2 hover:shadow-[0_12px_40px_0_rgba(31,38,135,0.25)]",
-                )}
-              >
+            const cardContent = (
+              <>
                 <div className="pointer-events-none absolute inset-0 rounded-3xl shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.9)]" />
 
                 {tool.comingSoon && (
@@ -139,7 +135,17 @@ export default function HomePage() {
                     </div>
                   </div>
                 )}
-              </Card>
+              </>
+            )
+
+            return isLink && tool.href ? (
+              <Link key={tool.id} href={tool.href} className={cardClasses}>
+                {cardContent}
+              </Link>
+            ) : (
+              <div key={tool.id} className={cardClasses}>
+                {cardContent}
+              </div>
             )
           })}
         </main>

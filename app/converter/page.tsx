@@ -20,33 +20,6 @@ type Feedback = {
   text: string
 } | null
 
-const MIME_EXTENSION_MAP: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/jpg": "jpg",
-  "image/pjpeg": "jpg",
-  "image/jfif": "jpg",
-  "image/png": "png",
-  "image/heic": "heic",
-  "image/heif": "heif",
-  "image/heic-sequence": "heic",
-  "image/heif-sequence": "heif",
-  "image/webp": "webp",
-}
-
-function inferExtension(file: File): string {
-  const namePart = file.name.split(".").pop()?.toLowerCase()
-  if (namePart && ALLOWED_EXTENSIONS.has(namePart)) {
-    return namePart
-  }
-
-  const mimeExtension = MIME_EXTENSION_MAP[file.type.toLowerCase()]
-  if (mimeExtension) {
-    return mimeExtension
-  }
-
-  return "bin"
-}
-
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`

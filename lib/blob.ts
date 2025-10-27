@@ -39,7 +39,10 @@ export async function handleDirectUpload(request: Request) {
     }
 
     // MIME 타입 검증
-    if (!ALLOWED_UPLOAD_MIME_TYPES.includes(file.type as any)) {
+    const isValidMimeType = ALLOWED_UPLOAD_MIME_TYPES.some(
+      (allowedType) => allowedType === file.type
+    )
+    if (!isValidMimeType) {
       return Response.json(
         { error: `Invalid file type: ${file.type}` },
         { status: 400 }
@@ -85,7 +88,6 @@ export async function handleDirectUpload(request: Request) {
     const uploadsDir = join(process.cwd(), "uploads")
     await mkdir(uploadsDir, { recursive: true })
 
-    const ext = file.name.split(".").pop() || "jpg"
     const filename = `${randomUUID()}_${file.name}`
     const filepath = join(uploadsDir, filename)
 

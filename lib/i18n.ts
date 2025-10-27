@@ -92,6 +92,9 @@ export const messages: Record<Locale, Messages> = {
   en: {
     title: "Convert Images to WebP",
     subtitle: "Batch convert JPG, JPEG, PNG, HEIC, HEIF to WebP format",
+    webp_card_title: "Image Compression",
+    webp_card_desc: "Compress images while maintaining quality, output JPG, PNG, SVG, GIF, etc.",
+    new_feature: "NEW!",
     main_title: "Webplyzer",
     main_subtitle: "Smart image optimization",
     image_compress_title: "WebP Converter",
@@ -132,6 +135,9 @@ export const messages: Record<Locale, Messages> = {
   ko: {
     title: "이미지를 WebP로 변환",
     subtitle: "JPG, JPEG, PNG, HEIC, HEIF 형식을 WebP 형식으로 일괄 변환",
+    webp_card_title: "이미지 압축",
+    webp_card_desc: "품질을 유지하면서 이미지를 압축하여 JPG, PNG, SVG, GIF 등으로 출력합니다.",
+    new_feature: "새 기능!",
     main_title: "Webplyzer",
     main_subtitle: "더 스마트한 이미지 최적화",
     image_compress_title: "WebP 변환",
