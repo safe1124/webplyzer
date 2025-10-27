@@ -80,7 +80,14 @@ export async function POST(req: Request) {
     }
 
     const webpBuffer = await pipeline.webp({ quality }).toBuffer();
-    const fileName = `${safeBaseName}_${fileIndex}.webp`;
+    
+    // 날짜 기반 파일명 생성 (YYYYMMDD_숫자.webp)
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const datePrefix = `${year}${month}${day}`;
+    const fileName = `${datePrefix}_${fileIndex}.webp`;
 
     // Blob 또는 로컬 파일 시스템에 저장
     const uploaded = await uploadBufferToBlob({
