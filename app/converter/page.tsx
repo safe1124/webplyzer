@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { upload } from "@vercel/blob/client"
 import Sortable, { type SortableEvent } from "sortablejs"
 import clsx from "clsx"
 import { ALLOWED_EXTENSIONS, MAX_FILES, sanitizeFilename } from "@/lib/sanitizeFilename"
@@ -224,23 +225,18 @@ export default function HomePage() {
         setProgress({ current: index + 1, total: items.length })
         const current = items[index]
 
-        // 파일을 /api/upload로 업로드 (Blob 또는 로컬)
+        // 파일을 Vercel Blob에 직접 업로드 (클라이언트 업로드, 4.5MB 이상 지원)
         let sourceUpload: { url: string; pathname: string }
         try {
-          const formData = new FormData()
-          formData.append("file", current.file)
-
-          const uploadResponse = await fetch("/api/upload", {
-            method: "POST",
-            body: formData,
+          const blob = await upload(current.file.name, current.file, {
+            access: "public",
+            handleUploadUrl: "/api/upload",
           })
 
-          if (!uploadResponse.ok) {
-            const errorData = await uploadResponse.json().catch(() => ({}))
-            throw new Error(errorData.error || "Upload failed")
+          sourceUpload = {
+            url: blob.url,
+            pathname: blob.pathname,
           }
-
-          sourceUpload = await uploadResponse.json()
         } catch (error) {
           console.error("[converter] upload failed", error)
           throw new Error(t.conversion_error)
