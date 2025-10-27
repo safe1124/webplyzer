@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import ffmpeg from "fluent-ffmpeg"
 import { writeFile, unlink } from "fs/promises"
+import { existsSync } from "fs"
 import { randomUUID } from "crypto"
 import { tmpdir } from "os"
 import { join } from "path"
@@ -11,51 +12,157 @@ export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 export const maxDuration = 300 // 5 minutes for video conversion
 
-// Initialize FFmpeg paths
-let ffmpegPath: string = "ffmpeg"
-let ffprobePath: string = "ffprobe"
+type BinaryName = "ffmpeg" | "ffprobe"
 
-// Try to use system binaries first (works in most environments)
-try {
-  const localFfmpeg = execSync("which ffmpeg").toString().trim()
-  if (localFfmpeg) {
-    ffmpegPath = localFfmpeg
-  }
-} catch {
-  // Try to load platform-specific installer only if system binary not found
-  try {
-    // Dynamic import to avoid build-time issues
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const ffmpegInstaller = require("@ffmpeg-installer/ffmpeg")
-    if (ffmpegInstaller?.path) {
-      ffmpegPath = ffmpegInstaller.path
+const BINARY_FALLBACK_PATHS: Record<BinaryName, string[]> = {
+  ffmpeg: [
+    "/usr/local/bin/ffmpeg",
+    "/usr/bin/ffmpeg",
+    "/bin/ffmpeg",
+    "/var/task/bin/ffmpeg",
+    "/var/task/ffmpeg",
+  ],
+  ffprobe: [
+    "/usr/local/bin/ffprobe",
+    "/usr/bin/ffprobe",
+    "/bin/ffprobe",
+    "/var/task/bin/ffprobe",
+    "/var/task/ffprobe",
+  ],
+}
+
+const bundledFfmpegPath = loadBundledBinary("@ffmpeg-installer/ffmpeg")
+const bundledFfprobePath = loadBundledBinary("@ffprobe-installer/ffprobe")
+
+let resolvedFfmpeg:
+  | {
+      path: string
+      source: string
     }
-  } catch (error) {
-    console.warn("[convert-video] FFmpeg installer not available, using system binary")
-  }
+  | null = null
+let resolvedFfprobe:
+  | {
+      path: string
+      source: string
+    }
+  | null = null
+
+let ffmpegSetupError: Error | null = null
+let ffprobeSetupError: Error | null = null
+
+try {
+  resolvedFfmpeg = resolveBinary("ffmpeg", {
+    envPath: process.env.FFMPEG_PATH,
+    bundledPath: bundledFfmpegPath,
+  })
+  ffmpeg.setFfmpegPath(resolvedFfmpeg.path)
+  console.log(`[convert-video] Using ffmpeg binary (${resolvedFfmpeg.source}): ${resolvedFfmpeg.path}`)
+} catch (error) {
+  ffmpegSetupError = error instanceof Error ? error : new Error(String(error))
+  console.error("[convert-video] FFmpeg binary resolution failed:", ffmpegSetupError)
 }
 
 try {
-  const localFfprobe = execSync("which ffprobe").toString().trim()
-  if (localFfprobe) {
-    ffprobePath = localFfprobe
-  }
-} catch {
+  resolvedFfprobe = resolveBinary("ffprobe", {
+    envPath: process.env.FFPROBE_PATH,
+    bundledPath: bundledFfprobePath,
+  })
+  ffmpeg.setFfprobePath(resolvedFfprobe.path)
+  console.log(`[convert-video] Using ffprobe binary (${resolvedFfprobe.source}): ${resolvedFfprobe.path}`)
+} catch (error) {
+  ffprobeSetupError = error instanceof Error ? error : new Error(String(error))
+  console.error("[convert-video] FFprobe binary resolution failed:", ffprobeSetupError)
+}
+
+function loadBundledBinary(
+  moduleId: "@ffmpeg-installer/ffmpeg" | "@ffprobe-installer/ffprobe"
+): string | undefined {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const ffprobeInstaller = require("@ffprobe-installer/ffprobe")
-    if (ffprobeInstaller?.path) {
-      ffprobePath = ffprobeInstaller.path
+    const installer = require(moduleId) as { path?: string }
+    if (typeof installer?.path === "string") {
+      return installer.path
     }
   } catch (error) {
-    console.warn("[convert-video] FFprobe installer not available, using system binary")
+    const message = error instanceof Error ? error.message : String(error)
+    console.warn(`[convert-video] ${moduleId} not available: ${message}`)
+  }
+  return undefined
+}
+
+function tryWhich(binaryName: BinaryName): string | undefined {
+  try {
+    const result = execSync(`which ${binaryName}`).toString().trim()
+    return result || undefined
+  } catch {
+    return undefined
   }
 }
 
-ffmpeg.setFfmpegPath(ffmpegPath)
-ffmpeg.setFfprobePath(ffprobePath)
+function resolveBinary(
+  binaryName: BinaryName,
+  options: {
+    envPath?: string | null
+    bundledPath?: string | undefined
+  }
+): { path: string; source: string } {
+  const candidates: Array<{ path: string; source: string }> = []
+
+  const envPath = options.envPath?.trim()
+  if (envPath) {
+    candidates.push({ path: envPath, source: "env" })
+  }
+
+  const systemPath = tryWhich(binaryName)
+  if (systemPath) {
+    candidates.push({ path: systemPath, source: "system" })
+  }
+
+  if (options.bundledPath) {
+    candidates.push({ path: options.bundledPath, source: "bundled" })
+  }
+
+  for (const fallbackPath of BINARY_FALLBACK_PATHS[binaryName]) {
+    candidates.push({ path: fallbackPath, source: "fallback" })
+  }
+
+  for (const candidate of candidates) {
+    if (!candidate.path) continue
+    try {
+      if (existsSync(candidate.path)) {
+        return candidate
+      }
+    } catch {
+      // Ignore filesystem access errors and try next candidate
+    }
+  }
+
+  const inspected =
+    candidates.length > 0
+      ? candidates.map((candidate) => `${candidate.source}:${candidate.path}`).join(", ")
+      : "none"
+
+  throw new Error(`Unable to locate ${binaryName} binary. Checked ${inspected}`)
+}
 
 export async function POST(request: NextRequest) {
+  if (ffmpegSetupError || ffprobeSetupError) {
+    const reasons = [
+      ffmpegSetupError ? `ffmpeg: ${ffmpegSetupError.message}` : null,
+      ffprobeSetupError ? `ffprobe: ${ffprobeSetupError.message}` : null,
+    ]
+      .filter(Boolean)
+      .join(" | ")
+
+    return Response.json(
+      {
+        error: "video_conversion_failed",
+        details: reasons || "FFmpeg/FFprobe binaries could not be resolved",
+      },
+      { status: 500 }
+    )
+  }
+
   try {
     const formData = await request.formData()
     const blobUrl = (formData.get("blobUrl") as string) || ""
