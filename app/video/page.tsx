@@ -209,40 +209,38 @@ export default function VideoConverterPage() {
         setProgress({ current: index + 1, total: items.length })
         const current = items[index]
 
-        // Step 1: Upload to Blob storage
+        // Step 1: Upload directly to Vercel Blob using client-side upload
         setUploadProgress(0)
-        const uploadFormData = new FormData()
-        uploadFormData.append("file", current.file)
 
-        const uploadResponse = await fetch("/api/upload-video", {
-          method: "POST",
-          body: uploadFormData,
+        const { upload } = await import("@vercel/blob/client")
+        const uploadedBlob = await upload(current.file.name, current.file, {
+          access: "public",
+          handleUploadUrl: "/api/upload-video",
+          onUploadProgress: ({ percentage }) => {
+            setUploadProgress(Math.round(percentage))
+          },
         })
 
-        if (!uploadResponse.ok) {
-          const errorData = await uploadResponse.json().catch(() => ({}))
-          throw new Error(errorData.error || "Upload failed")
-        }
-
-        const uploadData = await uploadResponse.json()
+        const blobUrl = uploadedBlob.url
+        const pathname = uploadedBlob.pathname
         setUploadProgress(100)
 
         // Step 2: Convert from Blob URL
         const convertFormData = new FormData()
-        convertFormData.append("blobUrl", uploadData.url)
-        convertFormData.append("blobPathname", uploadData.pathname)
+        convertFormData.append("blobUrl", blobUrl)
+        convertFormData.append("blobPathname", pathname)
         convertFormData.append("bitrate", bitrate)
         convertFormData.append("baseName", safeBaseName)
         convertFormData.append("fileIndex", (index + 1).toString())
         convertFormData.append("extension", current.file.name.split('.').pop() || 'mp4')
 
-        const blob = await uploadFileWithProgress(convertFormData, () => {
+        const convertedBlob = await uploadFileWithProgress(convertFormData, () => {
           // Conversion progress tracking not available for Blob-based conversion
         })
         setUploadProgress(null)
 
         const outputName = `${safeBaseName}_${index + 1}.webm`
-        converted.push({ blob, name: outputName })
+        converted.push({ blob: convertedBlob, name: outputName })
       }
 
       if (converted.length === 1) {
