@@ -5,6 +5,7 @@ import { randomUUID } from "crypto"
 import { tmpdir } from "os"
 import { join } from "path"
 import { execSync } from "child_process"
+import { del } from "@vercel/blob"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -30,23 +31,30 @@ if (process.env.VERCEL) {
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
-    const file = formData.get("file") as File
+    const blobUrl = (formData.get("blobUrl") as string) || ""
+    const blobPathname = (formData.get("blobPathname") as string) || ""
     const bitrateParam = (formData.get("bitrate") as string) || "1M"
     // Remove trailing 'k' or 'K' if present (fluent-ffmpeg adds it automatically)
     const bitrate = bitrateParam.replace(/[kK]$/, "")
     const baseName = (formData.get("baseName") as string) || "video"
     const fileIndex = parseInt((formData.get("fileIndex") as string) || "1", 10)
+    const originalExtension = (formData.get("extension") as string) || "mp4"
 
-    if (!file) {
-      return Response.json({ error: "No file provided" }, { status: 400 })
+    if (!blobUrl) {
+      return Response.json({ error: "No blob URL provided" }, { status: 400 })
     }
 
-    // Convert File to Buffer and save to temp file
-    const arrayBuffer = await file.arrayBuffer()
+    // Fetch video from Blob URL
+    const response = await fetch(blobUrl)
+    if (!response.ok) {
+      return Response.json({ error: "Failed to fetch video from Blob" }, { status: 400 })
+    }
+
+    const arrayBuffer = await response.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
     // Create temporary files
-    const inputPath = join(tmpdir(), `input-${randomUUID()}.${file.name.split('.').pop() || 'mp4'}`)
+    const inputPath = join(tmpdir(), `input-${randomUUID()}.${originalExtension}`)
     const outputPath = join(tmpdir(), `output-${randomUUID()}.webm`)
 
     await writeFile(inputPath, buffer)
@@ -91,6 +99,16 @@ export async function POST(request: NextRequest) {
             // Cleanup temp files
             await unlink(inputPath).catch(() => {})
             await unlink(outputPath).catch(() => {})
+
+            // Delete from Blob storage if pathname provided
+            if (blobPathname) {
+              try {
+                await del(blobPathname, { token: process.env.BLOB_READ_WRITE_TOKEN })
+                console.log(`[convert-video] Deleted Blob: ${blobPathname}`)
+              } catch (error) {
+                console.warn(`[convert-video] Failed to delete Blob: ${blobPathname}`, error)
+              }
+            }
 
             if (outputBuffer.length === 0) {
               resolve(

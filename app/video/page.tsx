@@ -209,16 +209,35 @@ export default function VideoConverterPage() {
         setProgress({ current: index + 1, total: items.length })
         const current = items[index]
 
-        const formData = new FormData()
-        formData.append("file", current.file)
-        formData.append("bitrate", bitrate)
-        formData.append("baseName", safeBaseName)
-        formData.append("fileIndex", (index + 1).toString())
-
-        // Upload with progress
+        // Step 1: Upload to Blob storage
         setUploadProgress(0)
-        const blob = await uploadFileWithProgress(formData, (percent) => {
-          setUploadProgress(percent)
+        const uploadFormData = new FormData()
+        uploadFormData.append("file", current.file)
+
+        const uploadResponse = await fetch("/api/upload-video", {
+          method: "POST",
+          body: uploadFormData,
+        })
+
+        if (!uploadResponse.ok) {
+          const errorData = await uploadResponse.json().catch(() => ({}))
+          throw new Error(errorData.error || "Upload failed")
+        }
+
+        const uploadData = await uploadResponse.json()
+        setUploadProgress(100)
+
+        // Step 2: Convert from Blob URL
+        const convertFormData = new FormData()
+        convertFormData.append("blobUrl", uploadData.url)
+        convertFormData.append("blobPathname", uploadData.pathname)
+        convertFormData.append("bitrate", bitrate)
+        convertFormData.append("baseName", safeBaseName)
+        convertFormData.append("fileIndex", (index + 1).toString())
+        convertFormData.append("extension", current.file.name.split('.').pop() || 'mp4')
+
+        const blob = await uploadFileWithProgress(convertFormData, () => {
+          // Conversion progress tracking not available for Blob-based conversion
         })
         setUploadProgress(null)
 
