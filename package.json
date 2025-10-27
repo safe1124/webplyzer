@@ -12,13 +12,14 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@vercel/blob": "^2.0.0",
     "clsx": "^2.1.1",
     "jszip": "^3.10.1",
     "next": "15.0.0-canary.57",
     "react": "19.0.0-rc.0",
     "react-dom": "19.0.0-rc.0",
-    "sortablejs": "^1.15.2",
-    "sharp": "^0.33.3"
+    "sharp": "^0.33.3",
+    "sortablejs": "^1.15.2"
   },
   "devDependencies": {
     "@types/jszip": "^3.4.1",

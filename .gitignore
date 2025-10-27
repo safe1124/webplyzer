@@ -34,3 +34,6 @@ coverage/
 # Misc
 .vercel
 *.log
+
+# Uploads
+uploads/

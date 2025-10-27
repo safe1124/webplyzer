@@ -8,5 +8,5 @@ export function sanitizeFilename(input: string | null | undefined): string {
   return cleaned.length > 0 ? cleaned : "image";
 }
 
-export const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png"]);
+export const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "heic", "heif"]);
 export const MAX_FILES = 25;

@@ -7,6 +7,14 @@ const nextConfig = {
   eslint: {
     dirs: ["app", "components", "lib"],
   },
+  async rewrites() {
+    return [
+      {
+        source: "/uploads/:path*",
+        destination: "/api/static/:path*",
+      },
+    ];
+  },
 };
 
 export default nextConfig;

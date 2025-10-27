@@ -1,6 +1,6 @@
-import JSZip from "jszip";
 import sharp from "sharp";
-import { ALLOWED_EXTENSIONS, MAX_FILES, sanitizeFilename } from "@/lib/sanitizeFilename";
+import { uploadBufferToBlob, deleteFromBlob } from "@/lib/blob";
+import { ALLOWED_EXTENSIONS, sanitizeFilename } from "@/lib/sanitizeFilename";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,104 +11,99 @@ function getExtension(name: string): string {
   return parts.length > 1 ? parts.pop()!.toLowerCase() : "";
 }
 
+type ConvertRequest = {
+  sourceUrl?: string;
+  sourcePathname?: string;
+  originalName?: string;
+  baseName?: string;
+  fileIndex?: number;
+  quality?: number;
+  maxWidth?: number;
+  maxHeight?: number;
+  maintainAspectRatio?: boolean;
+  cleanupSource?: boolean;
+};
+
+const QUALITY_MIN = 50;
+const QUALITY_MAX = 100;
+
 export async function POST(req: Request) {
   try {
-    const formData = await req.formData();
-    const baseName = sanitizeFilename(formData.get("base_name")?.toString());
-    const files = formData.getAll("files") as File[];
-    const fileIndexOverride = Number(formData.get("file_index"));
+    let payload: ConvertRequest;
+    try {
+      payload = (await req.json()) as ConvertRequest;
+    } catch {
+      return Response.json({ error: "invalid_payload" }, { status: 400 });
+    }
+    const sourceUrl = payload.sourceUrl;
 
-    const quality = Number(formData.get("quality")) || 90;
-    const maxWidth = formData.get("max_width") ? Number(formData.get("max_width")) : undefined;
-    const maxHeight = formData.get("max_height") ? Number(formData.get("max_height")) : undefined;
-    const maintainAspectRatio = formData.get("maintain_aspect_ratio") === "true";
-
-    if (!files.length) {
+    if (!sourceUrl || typeof sourceUrl !== "string") {
       return Response.json({ error: "no_file" }, { status: 400 });
     }
 
-    if (files.length > MAX_FILES) {
-      return Response.json({ error: "too_many_files" }, { status: 400 });
+    const originalName = payload.originalName ?? "";
+    const extension = getExtension(originalName || sourceUrl);
+
+    if (extension && !ALLOWED_EXTENSIONS.has(extension)) {
+      return Response.json({ error: "unsupported_file" }, { status: 400 });
     }
 
-    const converted: Array<{ name: string; buffer: Buffer }> = [];
+    const safeBaseName = sanitizeFilename(payload.baseName) || "image";
+    const qualityInput = Number.isFinite(payload.quality) ? Number(payload.quality) : 90;
+    const quality = Math.max(QUALITY_MIN, Math.min(QUALITY_MAX, qualityInput));
+    const maxWidth = Number.isFinite(payload.maxWidth) ? Math.max(1, Number(payload.maxWidth)) : undefined;
+    const maxHeight = Number.isFinite(payload.maxHeight) ? Math.max(1, Number(payload.maxHeight)) : undefined;
+    const maintainAspectRatio = payload.maintainAspectRatio !== undefined ? Boolean(payload.maintainAspectRatio) : true;
+    const fileIndex = Number.isFinite(payload.fileIndex) ? Math.max(1, Math.trunc(Number(payload.fileIndex))) : 1;
 
-    for (let index = 0; index < files.length; index += 1) {
-      const file = files[index];
-      const extension = getExtension(file.name);
+    // URL에서 파일 읽기 (로컬 또는 Blob)
+    const sourceResponse = await fetch(sourceUrl);
+    if (!sourceResponse.ok) {
+      return Response.json({ error: "source_not_found" }, { status: 404 });
+    }
 
-      if (!ALLOWED_EXTENSIONS.has(extension)) {
-        continue;
-      }
+    const arrayBuffer = await sourceResponse.arrayBuffer();
+    if (!arrayBuffer.byteLength) {
+      return Response.json({ error: "empty_file" }, { status: 400 });
+    }
 
-      const arrayBuffer = await file.arrayBuffer();
-      const inputBuffer = Buffer.from(arrayBuffer);
+    const inputBuffer = Buffer.from(arrayBuffer);
+    let pipeline = sharp(inputBuffer, { failOn: "none" }).rotate();
 
-      let pipeline = sharp(inputBuffer, { failOn: "none" }).rotate();
-
-      if (maxWidth || maxHeight) {
-        pipeline = pipeline.resize({
-          width: maxWidth,
-          height: maxHeight,
-          fit: maintainAspectRatio ? "inside" : "fill",
-          withoutEnlargement: true,
-        });
-      }
-
-      const webpBuffer = await pipeline
-        .webp({ quality: Math.max(50, Math.min(100, quality)) })
-        .toBuffer();
-
-      const ordinal =
-        Number.isFinite(fileIndexOverride) && files.length === 1
-          ? Math.max(1, Math.trunc(fileIndexOverride))
-          : index + 1;
-
-      converted.push({
-        name: `${baseName}_${ordinal}.webp`,
-        buffer: webpBuffer,
+    if (maxWidth || maxHeight) {
+      pipeline = pipeline.resize({
+        width: maxWidth,
+        height: maxHeight,
+        fit: maintainAspectRatio ? "inside" : "fill",
+        withoutEnlargement: true,
       });
     }
 
-    if (!converted.length) {
-      return Response.json({ error: "no_valid_files" }, { status: 400 });
-    }
+    const webpBuffer = await pipeline.webp({ quality }).toBuffer();
+    const fileName = `${safeBaseName}_${fileIndex}.webp`;
 
-    if (converted.length === 1) {
-      const [single] = converted;
-      const body = single.buffer.buffer.slice(
-        single.buffer.byteOffset,
-        single.buffer.byteOffset + single.buffer.byteLength
-      ) as ArrayBuffer;
-
-      return new Response(body, {
-        status: 200,
-        headers: {
-          "Content-Type": "image/webp",
-          "Content-Disposition": `attachment; filename="${single.name}"`,
-          "Cache-Control": "no-store",
-        },
-      });
-    }
-
-    const zip = new JSZip();
-    converted.forEach((file) => {
-      zip.file(file.name, file.buffer);
+    // Blob 또는 로컬 파일 시스템에 저장
+    const uploaded = await uploadBufferToBlob({
+      buffer: webpBuffer,
+      filename: fileName,
+      contentType: "image/webp",
+      cacheControlMaxAge: 60 * 60 * 24 * 30, // 30 days
     });
 
-    const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
-    const zipBody = zipBuffer.buffer.slice(
-      zipBuffer.byteOffset,
-      zipBuffer.byteOffset + zipBuffer.byteLength
-    ) as ArrayBuffer;
+    // 소스 파일 정리
+    if (payload.cleanupSource !== false && (payload.sourcePathname || payload.sourceUrl)) {
+      const target = payload.sourcePathname ?? payload.sourceUrl!;
+      await deleteFromBlob(target).catch((error) => {
+        console.warn("[api/convert] failed to delete source blob", error);
+      });
+    }
 
-    return new Response(zipBody, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/zip",
-        "Content-Disposition": `attachment; filename="${baseName}_webp.zip"`,
-        "Cache-Control": "no-store",
-      },
+    return Response.json({
+      ok: true,
+      name: fileName,
+      url: uploaded.url,
+      downloadUrl: uploaded.downloadUrl,
+      pathname: uploaded.pathname,
     });
   } catch (error) {
     console.error("[api/convert] error", error);
