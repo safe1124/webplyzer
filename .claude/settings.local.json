@@ -19,7 +19,11 @@
       "Bash(git branch:*)",
       "Bash(npm install:*)",
       "Bash(xargs kill:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(ffmpeg:*)",
+      "Read(//private/tmp/**)",
+      "Bash(cat:*)",
+      "Read(//tmp/**)"
     ]
   },
   "enableAllProjectMcpServers": true,

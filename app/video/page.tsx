@@ -155,11 +155,27 @@ export default function VideoConverterPage() {
         }
       })
 
-      xhr.addEventListener("load", () => {
+      xhr.addEventListener("load", async () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(xhr.response)
+          // Check if response is JSON (error) or blob (success)
+          const contentType = xhr.getResponseHeader("content-type")
+          if (contentType && contentType.includes("application/json")) {
+            // Parse JSON error
+            const text = await xhr.response.text()
+            const errorData = JSON.parse(text)
+            reject(new Error(errorData.error || "Conversion failed"))
+          } else {
+            resolve(xhr.response)
+          }
         } else {
-          reject(new Error(`HTTP ${xhr.status}`))
+          // Try to parse error response
+          try {
+            const text = await xhr.response.text()
+            const errorData = JSON.parse(text)
+            reject(new Error(errorData.error || `HTTP ${xhr.status}`))
+          } catch {
+            reject(new Error(`HTTP ${xhr.status}`))
+          }
         }
       })
 
