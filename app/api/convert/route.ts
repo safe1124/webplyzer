@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import { uploadBufferToBlob, deleteFromBlob } from "@/lib/blob";
-import { ALLOWED_EXTENSIONS } from "@/lib/sanitizeFilename";
+import { ALLOWED_EXTENSIONS, sanitizeFilename } from "@/lib/sanitizeFilename";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -103,13 +103,9 @@ export async function POST(req: Request) {
       alphaQuality: 100, // 투명도 품질 (알파 채널이 있는 경우)
     }).toBuffer();
     
-    // 날짜 기반 파일명 생성 (YYYYMMDD_숫자.webp)
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const datePrefix = `${year}${month}${day}`;
-    const fileName = `${datePrefix}_${fileIndex}.webp`;
+    const requestedBaseName = sanitizeFilename(payload.baseName);
+    const safeBaseName = requestedBaseName || "image";
+    const fileName = `${safeBaseName}_${fileIndex}.webp`;
 
     // Blob 또는 로컬 파일 시스템에 저장
     const uploaded = await uploadBufferToBlob({
