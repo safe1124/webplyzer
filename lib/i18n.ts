@@ -25,6 +25,7 @@ type MessageKey =
   | "order_list"
   | "drag_to_reorder"
   | "footer_text"
+  | "privacy_notice"
   | "file_removed"
   | "conversion_error"
   | "unsupported_file"
@@ -101,6 +102,7 @@ export const messages: Record<Locale, Messages> = {
     order_list: "変換順序",
     drag_to_reorder: "ドラッグで順序を変更できます",
     footer_text: "© Webplyzer – 都市大学生のための画像変換ツール",
+    privacy_notice: "画像変換のためにサーバーに一時保存されます。敏感な個人情報のアップロードは気をつけてください。",
     file_removed: "ファイルを削除しました",
     conversion_error: "変換に失敗しました。再度お試しください。",
     unsupported_file: "このファイル形式はサポートされていません（JPG/JPEG/PNGのみ）。",
@@ -165,6 +167,7 @@ export const messages: Record<Locale, Messages> = {
     order_list: "Processing order",
     drag_to_reorder: "Drag to change the order",
     footer_text: "© Webplyzer – 都市大学生のための画像変換ツール",
+    privacy_notice: "Images are temporarily stored on the server for conversion. Please be cautious when uploading sensitive personal information.",
     file_removed: "File removed",
     conversion_error: "Conversion failed. Please try again.",
     unsupported_file: "Only JPG, JPEG, or PNG files are supported.",
@@ -229,6 +232,7 @@ export const messages: Record<Locale, Messages> = {
     order_list: "변환 순서",
     drag_to_reorder: "드래그하여 순서를 변경하세요",
     footer_text: "© Webplyzer – 都市大学生のための画像変換ツール",
+    privacy_notice: "이미지 변환을 위해 서버에 임시 저장됩니다. 민감한 개인정보 업로드 시 주의하세요.",
     file_removed: "파일이 삭제되었습니다",
     conversion_error: "변환에 실패했습니다. 다시 시도하세요.",
     unsupported_file: "JPG, JPEG, PNG 파일만 지원됩니다.",

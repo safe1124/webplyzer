@@ -536,7 +536,10 @@ export default function HomePage() {
                   </p>
                 )}
 
-                <footer className="text-xs font-medium text-slate-500">{t.footer_text}</footer>
+                <footer className="flex flex-col items-center gap-1.5 text-center">
+                  <div className="text-xs font-medium text-slate-500">{t.footer_text}</div>
+                  <div className="text-[10px] leading-relaxed text-slate-400">{t.privacy_notice}</div>
+                </footer>
               </div>
 
               <div className="flex h-full flex-col gap-4">
