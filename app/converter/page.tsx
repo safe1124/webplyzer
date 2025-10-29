@@ -88,6 +88,9 @@ export default function HomePage() {
   const [maxWidth, setMaxWidth] = useState(1920)
   const [maxHeight, setMaxHeight] = useState(1080)
   const [maintainAspectRatio, setMaintainAspectRatio] = useState(true)
+  const [enableCustomNumbering, setEnableCustomNumbering] = useState(false)
+  const [startNumber, setStartNumber] = useState(1)
+  const [startNumberInput, setStartNumberInput] = useState("1")
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const dropRef = useRef<HTMLLabelElement | null>(null)
@@ -234,81 +237,129 @@ export default function HomePage() {
 
     try {
       const converted: Array<{ blob: Blob; name: string }> = []
+      let completedCount = 0
+      const errors: string[] = []
 
-      for (let index = 0; index < items.length; index += 1) {
-        setProgress({ current: index + 1, total: items.length })
-        const current = items[index]
-
-        // 파일을 Vercel Blob에 직접 업로드 (클라이언트 업로드, 4.5MB 이상 지원)
-        let sourceUpload: { url: string; pathname: string }
+      // 병렬 처리를 위한 Promise 배열
+      const conversionPromises = items.map(async (current, index) => {
         try {
+          // 1. 파일을 Vercel Blob에 업로드
           const blob = await upload(current.file.name, current.file, {
             access: "public",
             handleUploadUrl: "/api/upload",
           })
 
-          sourceUpload = {
+          const sourceUpload = {
             url: blob.url,
             pathname: blob.pathname,
           }
-        } catch (error) {
-          console.error("[converter] upload failed", error)
-          throw new Error(t.conversion_error)
-        }
 
-        const convertPayload: Record<string, unknown> = {
-          sourceUrl: sourceUpload.url,
-          sourcePathname: sourceUpload.pathname,
-          originalName: current.file.name,
-          baseName: safeBaseName,
-          fileIndex: index + 1,
-          quality,
-          cleanupSource: true,
-        }
+          // 시작 번호 계산: 체크박스 활성화 시 사용자 지정 번호, 아니면 1부터 시작
+          const fileNumber = enableCustomNumbering ? startNumber + index : index + 1
 
-        if (enableResize) {
-          convertPayload.maxWidth = maxWidth
-          convertPayload.maxHeight = maxHeight
-          convertPayload.maintainAspectRatio = maintainAspectRatio
-        }
-
-        const response = await fetch("/api/convert", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(convertPayload),
-        })
-
-        const payload = (await response.json().catch(() => null)) as
-          | { ok?: boolean; error?: string; name?: string; downloadUrl?: string; url?: string }
-          | null
-
-        const downloadTarget = payload?.downloadUrl ?? payload?.url
-
-        if (!response.ok || !payload?.ok || !downloadTarget) {
-          if (typeof window !== "undefined") {
-            // Surface details to the console for easier debugging in dev
-            // eslint-disable-next-line no-console
-            console.error("[converter] convert failed", {
-              status: response.status,
-              payload,
-            })
+          // 2. 변환 요청
+          const convertPayload: Record<string, unknown> = {
+            sourceUrl: sourceUpload.url,
+            sourcePathname: sourceUpload.pathname,
+            originalName: current.file.name,
+            baseName: safeBaseName,
+            fileIndex: fileNumber,
+            quality,
+            cleanupSource: true,
           }
-          const message = resolveErrorMessage(payload?.error, locale)
-          throw new Error(message)
-        }
 
-        const downloadResponse = await fetch(downloadTarget, { cache: "no-store" })
-        if (!downloadResponse.ok) {
-          throw new Error(t.conversion_error)
-        }
+          if (enableResize) {
+            convertPayload.maxWidth = maxWidth
+            convertPayload.maxHeight = maxHeight
+            convertPayload.maintainAspectRatio = maintainAspectRatio
+          }
 
-        const blob = await downloadResponse.blob()
+          const response = await fetch("/api/convert", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(convertPayload),
+          })
+
+          const payload = (await response.json().catch(() => null)) as
+            | { ok?: boolean; error?: string; name?: string; downloadUrl?: string; url?: string }
+            | null
+
+          const downloadTarget = payload?.downloadUrl ?? payload?.url
+
+          if (!response.ok || !payload?.ok || !downloadTarget) {
+            if (typeof window !== "undefined") {
+              // eslint-disable-next-line no-console
+              console.error("[converter] convert failed", {
+                status: response.status,
+                payload,
+              })
+            }
+            const message = resolveErrorMessage(payload?.error, locale)
+            throw new Error(message)
+          }
+
+          // 3. 변환된 파일 다운로드
+          const downloadResponse = await fetch(downloadTarget, { cache: "no-store" })
+          if (!downloadResponse.ok) {
+            throw new Error(t.conversion_error)
+          }
+
+          const webpBlob = await downloadResponse.blob()
+
+          // 진행률 업데이트
+          completedCount += 1
+          setProgress({ current: completedCount, total: items.length })
+
+          return {
+            success: true,
+            blob: webpBlob,
+            name: payload.name ?? `${safeBaseName}_${index + 1}.webp`,
+            index, // 원본 순서 유지를 위한 인덱스
+          }
+        } catch (error) {
+          // 개별 파일 실패 처리 - 에러를 기록하고 null 반환
+          const errorMessage = error instanceof Error ? error.message : t.conversion_error
+          errors.push(`${current.file.name}: ${errorMessage}`)
+
+          completedCount += 1
+          setProgress({ current: completedCount, total: items.length })
+
+          return {
+            success: false,
+            index,
+            fileName: current.file.name,
+          }
+        }
+      })
+
+      // 모든 변환 작업을 병렬 실행
+      const results = await Promise.all(conversionPromises)
+
+      // 성공한 결과만 필터링하고 원본 순서대로 정렬
+      const successResults = results.filter(
+        (r): r is { success: true; blob: Blob; name: string; index: number } => r.success
+      )
+      successResults.sort((a, b) => a.index - b.index)
+
+      // 결과 저장
+      for (const result of successResults) {
         converted.push({
-          blob,
-          name: payload.name ?? `${safeBaseName}_${index + 1}.webp`,
+          blob: result.blob,
+          name: result.name,
         })
+      }
+
+      // 에러가 있으면 경고 표시 (일부 성공한 경우)
+      if (errors.length > 0 && converted.length > 0) {
+        setFeedback({
+          tone: "error",
+          text: `${t.error}: ${errors.length}개 파일 실패. ${converted.length}개 파일 성공`,
+        })
+      } else if (errors.length > 0) {
+        // 모든 파일 실패
+        throw new Error(errors[0] ?? t.conversion_error)
       }
 
       if (converted.length === 1) {
@@ -457,6 +508,52 @@ export default function HomePage() {
                               className="h-4 w-4 rounded border-gray-300 text-blue-500 focus:ring-2 focus:ring-blue-200/50"
                             />
                             <span className="text-xs font-medium text-slate-600">{t.maintain_aspect_ratio}</span>
+                          </label>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="border-t border-white/60 pt-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={enableCustomNumbering}
+                          onChange={(e) => setEnableCustomNumbering(e.target.checked)}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-500 focus:ring-2 focus:ring-blue-200/50"
+                        />
+                        <span className="text-sm font-semibold text-slate-700">{t.enable_custom_numbering}</span>
+                      </label>
+
+                      {enableCustomNumbering && (
+                        <div className="mt-3 pl-6">
+                          <label className="flex flex-col gap-1">
+                            <span className="text-xs font-medium text-slate-600">{t.start_number}</span>
+                            <input
+                              type="number"
+                              min="1"
+                              max="9999"
+                              value={startNumberInput}
+                              onChange={(e) => {
+                                const value = e.target.value
+                                setStartNumberInput(value)
+
+                                const num = parseInt(value, 10)
+                                if (!isNaN(num) && num >= 1) {
+                                  setStartNumber(Math.max(1, Math.min(9999, num)))
+                                }
+                              }}
+                              onBlur={(e) => {
+                                const num = parseInt(e.target.value, 10)
+                                if (isNaN(num) || num < 1) {
+                                  setStartNumber(1)
+                                  setStartNumberInput("1")
+                                } else {
+                                  setStartNumberInput(String(num))
+                                }
+                              }}
+                              placeholder={t.start_number_placeholder}
+                              className="rounded-lg border border-white/60 bg-white/60 px-3 py-1.5 text-sm font-medium text-slate-800 shadow-sm backdrop-blur-xl outline-none transition-all duration-200 focus:border-blue-300/60 focus:ring-2 focus:ring-blue-200/50"
+                            />
                           </label>
                         </div>
                       )}

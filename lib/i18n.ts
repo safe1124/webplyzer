@@ -62,7 +62,10 @@ type MessageKey =
   | "ffmpeg_ready"
   | "ffmpeg_load_error"
   | "uploading"
-  | "video_conversion_failed";
+  | "video_conversion_failed"
+  | "enable_custom_numbering"
+  | "start_number"
+  | "start_number_placeholder";
 
 type Messages = Record<MessageKey, string>;
 
@@ -130,6 +133,9 @@ export const messages: Record<Locale, Messages> = {
     ffmpeg_load_error: "FFmpegの読み込みに失敗しました",
     uploading: "アップロード中",
     video_conversion_failed: "動画の変換に失敗しました",
+    enable_custom_numbering: "番号指定を有効にする",
+    start_number: "開始番号",
+    start_number_placeholder: "例: 11",
   },
   en: {
     title: "Convert Images to WebP",
@@ -194,6 +200,9 @@ export const messages: Record<Locale, Messages> = {
     ffmpeg_load_error: "Failed to load FFmpeg",
     uploading: "Uploading",
     video_conversion_failed: "Video conversion failed",
+    enable_custom_numbering: "Enable custom numbering",
+    start_number: "Start number",
+    start_number_placeholder: "e.g. 11",
   },
   ko: {
     title: "이미지를 WebP로 변환",
@@ -258,6 +267,9 @@ export const messages: Record<Locale, Messages> = {
     ffmpeg_load_error: "FFmpeg 로드 실패",
     uploading: "업로드 중",
     video_conversion_failed: "동영상 변환 실패",
+    enable_custom_numbering: "번호 지정 활성화",
+    start_number: "시작 번호",
+    start_number_placeholder: "예: 11",
   },
 };
 
