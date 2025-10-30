@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { upload } from "@vercel/blob/client"
 import Sortable, { type SortableEvent } from "sortablejs"
 import clsx from "clsx"
 import { ALLOWED_EXTENSIONS, MAX_FILES, MAX_FILE_SIZE_BYTES, sanitizeFilename } from "@/lib/sanitizeFilename"
@@ -66,6 +65,8 @@ function resolveErrorMessage(code: string | undefined, locale: Locale): string {
       return dict.conversion_error
     case "unsupported_file":
       return dict.unsupported_file
+    case "file_too_large":
+      return dict.file_too_large
     case "invalid_payload":
     case "source_not_found":
     case "empty_file":
@@ -243,43 +244,26 @@ export default function HomePage() {
       // 병렬 처리를 위한 Promise 배열
       const conversionPromises = items.map(async (current, index) => {
         try {
-          // 1. 파일을 Vercel Blob에 업로드
-          const blob = await upload(current.file.name, current.file, {
-            access: "public",
-            handleUploadUrl: "/api/upload",
-          })
-
-          const sourceUpload = {
-            url: blob.url,
-            pathname: blob.pathname,
-          }
-
           // 시작 번호 계산: 체크박스 활성화 시 사용자 지정 번호, 아니면 1부터 시작
           const fileNumber = enableCustomNumbering ? startNumber + index : index + 1
 
-          // 2. 변환 요청
-          const convertPayload: Record<string, unknown> = {
-            sourceUrl: sourceUpload.url,
-            sourcePathname: sourceUpload.pathname,
-            originalName: current.file.name,
-            baseName: safeBaseName,
-            fileIndex: fileNumber,
-            quality,
-            cleanupSource: true,
-          }
+          // FormData 생성 (파일을 직접 전송)
+          const formData = new FormData()
+          formData.append("file", current.file)
+          formData.append("baseName", safeBaseName)
+          formData.append("fileIndex", String(fileNumber))
+          formData.append("quality", String(quality))
 
           if (enableResize) {
-            convertPayload.maxWidth = maxWidth
-            convertPayload.maxHeight = maxHeight
-            convertPayload.maintainAspectRatio = maintainAspectRatio
+            formData.append("maxWidth", String(maxWidth))
+            formData.append("maxHeight", String(maxHeight))
+            formData.append("maintainAspectRatio", String(maintainAspectRatio))
           }
 
+          // 변환 요청 (업로드와 변환을 한 번에 처리)
           const response = await fetch("/api/convert", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(convertPayload),
+            body: formData,
           })
 
           const payload = (await response.json().catch(() => null)) as
@@ -300,7 +284,7 @@ export default function HomePage() {
             throw new Error(message)
           }
 
-          // 3. 변환된 파일 다운로드
+          // 변환된 파일 다운로드
           const downloadResponse = await fetch(downloadTarget, { cache: "no-store" })
           if (!downloadResponse.ok) {
             throw new Error(t.conversion_error)

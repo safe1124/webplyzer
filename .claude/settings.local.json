@@ -23,7 +23,11 @@
       "Bash(ffmpeg:*)",
       "Read(//private/tmp/**)",
       "Bash(cat:*)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "WebSearch",
+      "WebFetch(domain:ai.google.dev)",
+      "Bash(node test-imagen.js:*)",
+      "Bash(git reset:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

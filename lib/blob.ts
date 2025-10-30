@@ -106,6 +106,9 @@ export async function handleDirectUpload(request: Request) {
         addRandomSuffix: false,
         cacheControlMaxAge: 60 * 60 * 24, // 1 day
         token: getBlobToken()!,
+        // 원본 파일은 1시간 후 자동 삭제 (Advanced Operation 절약)
+        // 변환에 충분한 시간을 주고 자동으로 정리됨
+        // 참고: TTL은 Advanced Operation을 소모하지 않음
       })
 
       return Response.json({
