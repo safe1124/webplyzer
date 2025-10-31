@@ -371,19 +371,26 @@ export default function HomePage() {
 
   return (
     <div className="relative flex min-h-screen w-full items-start justify-center overflow-hidden px-4 py-8 md:py-12">
-      <div className="fixed inset-0 -z-10 bg-gradient-to-br from-blue-50 via-indigo-50/30 to-purple-50/50" />
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-100/40 via-transparent to-transparent" />
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-purple-100/30 via-transparent to-transparent" />
+      {/* Yellow liquid glass background */}
+      <div className="fixed inset-0 -z-10 bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50" />
+      <div className="fixed inset-0 -z-10 bg-gradient-to-tr from-yellow-100/40 via-amber-100/30 to-orange-100/40" />
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_30%_20%,_rgba(251,191,36,0.15)_0%,_transparent_50%)]" />
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_70%_80%,_rgba(249,115,22,0.12)_0%,_transparent_50%)]" />
 
-      <div className="relative flex w-full max-w-7xl flex-col gap-6 rounded-[2rem] border border-white/60 bg-white/40 p-6 shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] backdrop-blur-2xl backdrop-saturate-150 md:gap-8 md:p-10">
-        <div className="pointer-events-none absolute inset-0 rounded-[2rem] shadow-[inset_0_1px_1px_0_rgba(255,255,255,0.9)]" />
+      {/* Animated liquid blobs */}
+      <div className="liquid-blob fixed left-[10%] top-[15%] -z-10 h-[500px] w-[500px] bg-gradient-to-br from-yellow-300/30 via-amber-300/25 to-orange-300/20 blur-3xl" />
+      <div className="liquid-blob-slow fixed right-[15%] bottom-[20%] -z-10 h-[600px] w-[600px] bg-gradient-to-br from-orange-300/25 via-amber-300/30 to-yellow-300/20 blur-3xl" />
+      <div className="liquid-pulse fixed left-[50%] top-[50%] -z-10 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 bg-gradient-to-br from-amber-200/20 via-yellow-200/25 to-orange-200/20 blur-3xl" />
+
+      <div className="relative flex w-full max-w-7xl flex-col gap-6 rounded-[2rem] border border-white/60 bg-white/40 p-6 shadow-[0_8px_32px_0_rgba(251,191,36,0.25)] backdrop-blur-2xl backdrop-saturate-150 md:gap-8 md:p-10">
+        <div className="pointer-events-none absolute inset-0 rounded-[2rem] shadow-[inset_0_2px_4px_0_rgba(255,255,255,0.9)]" />
 
         <header className="relative flex flex-col items-center gap-2 text-center md:gap-3">
-          <h1 className="text-3xl font-bold tracking-tight text-black md:text-5xl">
+          <h1 className="bg-gradient-to-br from-amber-900 via-orange-800 to-yellow-900 bg-clip-text text-3xl font-bold tracking-tight text-transparent md:text-5xl">
             {t.title}
           </h1>
-          <p className="text-base font-medium text-black md:text-lg">
-            <span className="text-blue-600 font-semibold">JPG, JPEG, PNG, HEIC, HEIF</span>{" "}
+          <p className="text-base font-medium text-amber-900/80 md:text-lg">
+            <span className="font-semibold text-amber-600">JPG, JPEG, PNG, HEIC, HEIF</span>{" "}
             {locale === "ja" && "形式をWebp形式に一括変換"}
             {locale === "en" && "to WebP format"}
             {locale === "ko" && "형식을 WebP 형식으로 일괄 변환"}
@@ -395,10 +402,10 @@ export default function HomePage() {
                 type="button"
                 onClick={() => handleLocaleChange(option.code)}
                 className={clsx(
-                  "flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-all duration-200 md:px-5 md:py-2.5",
+                  "flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-all duration-300 md:px-5 md:py-2.5",
                   locale === option.code
-                    ? "border-blue-200/50 bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-[0_4px_16px_0_rgba(59,130,246,0.4)] backdrop-blur-xl"
-                    : "border-white/60 bg-white/50 text-slate-700 shadow-sm backdrop-blur-xl hover:border-blue-200/60 hover:bg-white/70 hover:shadow-md",
+                    ? "border-amber-300/60 bg-gradient-to-br from-amber-500 via-orange-500 to-yellow-500 text-white shadow-[0_4px_16px_0_rgba(251,191,36,0.6)] backdrop-blur-xl"
+                    : "border-white/80 bg-white/50 text-amber-900 shadow-sm backdrop-blur-xl hover:border-amber-300/80 hover:bg-white/70 hover:shadow-md hover:scale-105",
                 )}
               >
                 <span>{option.emoji}</span>
