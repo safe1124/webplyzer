@@ -27,7 +27,9 @@
       "WebSearch",
       "WebFetch(domain:ai.google.dev)",
       "Bash(node test-imagen.js:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(identify:*)",
+      "Bash(sips:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
